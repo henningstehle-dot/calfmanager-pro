@@ -2,3 +2,6 @@
 
 /* CalfManager Pro 1.2.0 */
 .panel-head{flex-wrap:wrap;gap:12px}.panel-head select{padding:10px;border:1px solid #dbe5dc;border-radius:9px;background:white}.small-action{display:inline-flex;align-items:center;gap:4px;margin-right:5px}.weight-chart{display:grid;gap:12px;margin-top:12px}.weight-chart>div>span{font-size:12px;color:#63796c}.weight-bar{background:#26704e;color:white;padding:7px 10px;border-radius:6px;min-width:70px;white-space:nowrap}.modal{max-height:90vh;overflow:auto}.stats{margin-top:20px}
+
+/* v1.3 Admin-Ansicht */
+.admin-panel{max-width:1500px}.admin-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}.admin-panel .stats{margin:24px 0}.admin-panel table{min-width:650px}.member-row .outline{margin-left:auto}
