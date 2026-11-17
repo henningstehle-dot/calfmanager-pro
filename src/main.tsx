@@ -57,6 +57,51 @@ async function adminDelete(u:AdminUser){
   }catch(e){error(e)}finally{setBusy(false)}
 }
 
+function openAccount(){
+  if(!user)return;
+  setProfileFirst(String(user.user_metadata?.first_name??''));
+  setProfileLast(String(user.user_metadata?.last_name??''));
+  setProfileEmail(user.email??'');
+  setProfilePassword('');
+  setProfilePasswordRepeat('');
+  setProfileNotice('');
+  setShowAccount(true);
+}
+async function saveAccount(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault();
+  if(!db||!user||profileBusy)return;
+  if(profilePassword&&profilePassword.length<8){setProfileNotice('Das Passwort muss mindestens 8 Zeichen lang sein.');return;}
+  if(profilePassword!==profilePasswordRepeat){setProfileNotice('Die beiden Passwörter stimmen nicht überein.');return;}
+  setProfileBusy(true);
+  setProfileNotice('');
+  try{
+    const newEmail=profileEmail.trim();
+    const emailChanged=newEmail.toLowerCase()!==(user.email??'').toLowerCase();
+    const changes:{data?:{first_name:string;last_name:string};email?:string;password?:string}={
+      data:{first_name:profileFirst.trim(),last_name:profileLast.trim()}
+    };
+    if(emailChanged)changes.email=newEmail;
+    if(profilePassword)changes.password=profilePassword;
+    const {data,error:saveError}=await db.auth.updateUser(changes);
+    if(saveError)throw saveError;
+    if(data.user)setUser(data.user);
+    setProfilePassword('');
+    setProfilePasswordRepeat('');
+    setProfileNotice(emailChanged?'Änderungen gespeichert. Bitte bestätige die neue E-Mail-Adresse über die Bestätigungsnachricht.':'Änderungen erfolgreich gespeichert.');
+  }catch(err){setProfileNotice(err instanceof Error?err.message:String(err));}
+  finally{setProfileBusy(false);}
+}
+async function sendProfileReset(){
+  if(!db||!user?.email||profileBusy)return;
+  setProfileBusy(true);
+  try{
+    const {error:resetError}=await db.auth.resetPasswordForEmail(user.email,{redirectTo:window.location.origin+window.location.pathname});
+    if(resetError)throw resetError;
+    setProfileNotice('Wenn die Adresse für die Passwortwiederherstellung berechtigt ist, erhältst du eine E-Mail mit weiteren Anweisungen.');
+  }catch(err){setProfileNotice(err instanceof Error?err.message:String(err));}
+  finally{setProfileBusy(false);}
+}
+
 useEffect(()=>{if(isAdmin&&page==='Administration')void loadAdminStats()},[isAdmin,page]);
 function exportCsv(){const rows=[['Ohrmarke','Name','Geburtsdatum','Geschlecht','Rasse','Status','Notizen'],...filtered.map(c=>[c.ear_tag,c.name??'',c.birth_date,c.sex,c.breed??'',c.status,c.notes??''])];const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.download='calfmanager-kaelber.csv';link.click();URL.revokeObjectURL(link.href)}
 async function addMember(e:React.FormEvent){e.preventDefault();if(!db||!farm)return;const {error:e2}=await db.rpc('add_existing_member',{p_farm_id:farm.id,p_email:inviteEmail.trim().toLowerCase()});if(e2)error(e2);else{setInviteEmail('');setMessage('Mitarbeiter hinzugefügt.');await refreshData()}}
