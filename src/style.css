@@ -101,3 +101,6 @@
 .auth-logo img{display:block;width:100%;height:auto;filter:drop-shadow(0 5px 14px rgba(0,0,0,.28))}
 .farmer-brand .dashboard-logo{display:block;width:clamp(86px,12vw,125px);height:auto;border-radius:16px}
 @media(max-width:760px){.auth-hero{background-position:center 42%;padding:28px 25px}.auth-logo{max-width:115px;margin-bottom:15px}.farmer-brand .dashboard-logo{width:88px}}
+
+/* 2.3.0 */
+.growth-tag{display:inline-block;padding:6px 10px;border-radius:20px;font-weight:650;font-size:12px}.growth-green{background:#d9f4e4;color:#17653c}.growth-yellow{background:#fff0c9;color:#805000}.growth-red{background:#ffe0dd;color:#9b2626}.team-actions{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}.team-actions button{min-height:44px}@media(max-width:680px){.team-actions{width:100%;margin-left:0}.team-actions button{flex:1}}
