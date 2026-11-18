@@ -73,3 +73,17 @@
 
 /* CalfManager Pro 1.8.0 – Zusatz am Ende von src/style.css */
 .farm-map-section{margin-top:20px}.farm-map-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:18px 0}.farm-location-map{width:100%;height:470px;min-height:330px;border-radius:16px;overflow:hidden;border:1px solid #d7e4dc;background:#e8f0ea;z-index:0}.farm-map-section .leaflet-container{font-family:inherit}@media(max-width:650px){.farm-location-map{height:350px}}
+
+/* CalfManager Pro 1.9.0 – Kälberprofile und Tierhistorie */
+.calf-detail-modal{max-width:940px;width:min(96vw,940px)}
+.calf-detail-grid,.calf-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 25px}
+.calf-detail-grid>div,.calf-summary-grid>div{background:#f3f8f2;border:1px solid #e0eadf;border-radius:12px;padding:14px;min-width:0}
+.calf-detail-grid small,.calf-summary-grid small{display:block;color:#718575;font-size:11px;margin-bottom:8px}
+.calf-detail-grid strong,.calf-summary-grid strong{display:block;color:#234e38;font-size:16px;overflow-wrap:anywhere}
+.calf-summary-grid span{display:block;color:#708477;font-size:12px;margin-top:7px;overflow-wrap:anywhere}
+.calf-notes{background:#f8faf6;padding:14px;border-radius:10px;white-space:pre-wrap}
+.calf-history-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:26px}
+.calf-history-head select{max-width:220px}
+.calf-history-row{padding:14px 0;border-bottom:1px solid #e7eee5;font-size:13px}
+.calf-history-row p{color:#667b6c;margin:7px 0 0;white-space:pre-wrap}
+@media(max-width:650px){.calf-detail-grid,.calf-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
