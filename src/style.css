@@ -67,3 +67,6 @@
   .navigation-grid .navigation-tile{padding:18px 10px;min-height:142px;gap:11px}
   .navigation-grid .navigation-tile .navigation-tile-icon{width:52px;height:52px;border-radius:15px}
 }
+
+/* CalfManager Pro 1.7.0 – Betriebsdaten */
+.farm-settings-form{max-width:680px;margin-top:18px}.farm-settings-form .primary{margin-top:6px}.farm-settings-form input[readonly]{background:#f3f6f2;color:#53695a;cursor:default}.settings-divider{border:0;border-top:1px solid #e6ece5;margin:28px 0 22px}
