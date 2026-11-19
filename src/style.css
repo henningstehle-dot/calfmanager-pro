@@ -111,3 +111,6 @@
 .farmer-brand .dashboard-greeting{font-size:clamp(18px,2.5vw,31px);line-height:1.18;font-weight:800;letter-spacing:-.7px;color:#20372e;white-space:normal}
 .farmer-brand:has(.dashboard-logo){gap:18px;min-width:0;max-width:100%}
 @media(max-width:760px){.farmer-brand:has(.dashboard-logo){gap:14px}.farmer-brand .dashboard-greeting{font-size:clamp(18px,5vw,25px)}.farmer-brand .dashboard-logo{flex-shrink:0}}
+
+/* 2.4.5: Gesundheitswarnungen und Ohrmarkenkamera */
+.health-traffic-stats .traffic-select{display:flex;align-items:center;gap:7px;text-align:left;background:transparent;border:1px solid #d4e4d9;border-radius:10px;padding:12px;cursor:pointer;font:inherit;color:inherit}.health-traffic-stats .traffic-select[aria-pressed="true"]{outline:2px solid #267448;background:#eef9f0}.traffic-detail{margin-top:16px;padding:16px;border:1px solid #d4e4d9;border-radius:12px}.traffic-detail-row{padding:10px 0;border-bottom:1px solid #e5ece7}.traffic-detail-row ul{margin:8px 0 0 20px;padding:0}.ear-tag-input{display:flex;gap:8px;align-items:center}.ear-tag-input>input{flex:1;min-width:0}.camera-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;min-width:46px;min-height:44px}
