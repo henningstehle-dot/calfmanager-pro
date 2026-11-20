@@ -141,7 +141,7 @@ async function setCalfHealth(calf:Calf,next:'green'|'yellow'|'red'){
  const {error:e}=await db.from('calves').update({health_status:next}).eq('id',calf.id).eq('farm_id',farm.id);
  if(e){error(e);return;}
  const label=next==='red'?'Rot – Behandlung erforderlich':next==='yellow'?'Gelb – Beobachtung':'Grün – unauffällig';
- const {error:eventError}=await db.from('calf_events').insert({farm_id:farm.id,calf_id:calfarm.id,event_date:new Date().toLocaleDateString('sv-SE'),kind:'health',details:'Gesundheitsampel manuell geändert: '+label});
+ const {error:eventError}=await db.from('calf_events').insert({farm_id:farm.id,calf_id:calf.id,event_date:new Date().toLocaleDateString('sv-SE'),kind:'health',details:'Gesundheitsampel manuell geändert: '+label});
  if(eventError)setMessage('Status gespeichert, aber Historieneintrag fehlgeschlagen: '+eventError.message);
  await refreshData();
 }
