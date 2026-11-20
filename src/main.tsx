@@ -461,7 +461,7 @@ function CalfDetails({calf,events,onHealthChange,onClose}:{calf:Calf;events:Reco
  {filtered.length?filtered.map(e=><div className="calf-history-row" key={e.id}><div><b>{e.event_date} · {kindName(e.kind)}</b><p>{e.details||'Keine Beschreibung'}{e.weight_kg!=null?` · ${e.weight_kg} kg`:''}{e.milk_liters!=null?` · ${e.milk_liters} l`:''}</p></div></div>):<Empty text="Keine Einträge für diesen Filter vorhanden."/>}
  </section></div>;
 }
-function Stat({icon,label,value,suffix=''}:{icon:string;label:string;value:number;suffix?:string}){return <div className="stat"><span className="stat-icon">{icon}</span><small>{label}</small><strong>{value}{suffix&&<span className="stat-suffix">{suffix}</span>}</strong></div>}
+function Stat({icon,label,value,suffix=''}:{icon:string;label:string;value:number|string;suffix?:string}){return <div className="stat"><span className="stat-icon">{icon}</span><small>{label}</small><strong>{value}{suffix&&<span className="stat-suffix">{suffix}</span>}</strong></div>}
 function Empty({text}:{text:string}){return <div className="empty">🐄<p>{text}</p></div>}
 function kindName(kind:string){return ({health:'Gesundheit',weight:'Gewicht',feeding:'Fütterung',task:'Aufgabe'} as Record<string,string>)[kind]??kind}
 createRoot(document.getElementById('root')!).render(<App/>);
