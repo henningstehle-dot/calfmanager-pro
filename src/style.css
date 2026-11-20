@@ -114,3 +114,14 @@
 
 /* 2.4.5: Gesundheitswarnungen und Ohrmarkenkamera */
 .health-traffic-stats .traffic-select{display:flex;align-items:center;gap:7px;text-align:left;background:transparent;border:1px solid #d4e4d9;border-radius:10px;padding:12px;cursor:pointer;font:inherit;color:inherit}.health-traffic-stats .traffic-select[aria-pressed="true"]{outline:2px solid #267448;background:#eef9f0}.traffic-detail{margin-top:16px;padding:16px;border:1px solid #d4e4d9;border-radius:12px}.traffic-detail-row{padding:10px 0;border-bottom:1px solid #e5ece7}.traffic-detail-row ul{margin:8px 0 0 20px;padding:0}.ear-tag-input{display:flex;gap:8px;align-items:center}.ear-tag-input>input{flex:1;min-width:0}.camera-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;min-width:46px;min-height:44px}
+
+/* 2.5.0 Stallorganisation */
+.ear-tag-input{display:flex;align-items:stretch;gap:8px}.ear-tag-input>input{min-height:46px}.ear-tag-input .camera-button{height:auto;min-height:46px;margin:0;box-sizing:border-box;align-self:stretch}.box-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}.box-card{border:1px solid #d4e4d9;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:5px}.box-card small{color:#53675a}.box-create{display:flex;flex-wrap:wrap;align-items:end;gap:12px}.box-create label{flex:1;min-width:160px}
+
+/* 2.5.0 – manuelle Gesundheitsampel und ausgerichtete Ohrmarkenkamera */
+.calf-health-actions{padding:14px;margin:12px 0;border:1px solid #d4e4d9;border-radius:12px;background:#f7fbf8}
+.calf-health-actions>div{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.health-choice{padding:10px 13px;border:1px solid #cbd9ce;border-radius:9px;background:white;cursor:pointer;font:inherit}
+.health-choice.selected{outline:3px solid #247549;font-weight:700}
+.health-choice.red.selected{outline-color:#bc3b3b}.health-choice.yellow.selected{outline-color:#c58a16}
+.ear-tag-input{display:flex;align-items:stretch;gap:8px}.ear-tag-input>input{flex:1;min-width:0;min-height:46px}.ear-tag-input .camera-button{display:flex;align-items:center;justify-content:center;align-self:stretch;margin:0;height:auto;min-height:46px;box-sizing:border-box}
