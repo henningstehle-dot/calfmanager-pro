@@ -164,3 +164,10 @@
 .mini-dot{display:inline-block;width:8px;height:8px;border-radius:50%}.mini-dot.green{background:#24a56a}.mini-dot.yellow{background:#e5b52e}.mini-dot.red{background:#d95252}
 #dashboard-health-overview{scroll-margin-top:20px}
 @media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:7px}.mini-health-overview{padding:4px 6px;gap:5px}.mini-health-numbers{gap:4px;font-size:12px}.mini-health-ring{width:36px;height:36px}.mini-health-ring>span{width:26px;height:26px;font-size:12px}}
+
+/* 3.0.3 – Gesundheitsring neben der Begrüßung, Ampelzahlen unter dem Ring */
+.farmer-brand:has(.mini-health-overview){flex-wrap:nowrap;align-items:center}
+.mini-health-overview{flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:6px 8px;flex-shrink:0}
+.mini-health-numbers{display:flex;justify-content:center;gap:7px}
+.farmer-brand .dashboard-greeting{min-width:0}
+@media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:7px}.mini-health-overview{gap:3px;padding:4px 5px}.mini-health-numbers{gap:5px;font-size:11px}}
