@@ -152,3 +152,15 @@
 
 /* Version 3.0.1: kompakte Kälberübersicht und aufklappbare Tageskacheln */
 .calf-bottom-actions{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid #e0e8e2}.calf-bottom-actions button{min-height:44px;display:inline-flex;align-items:center;gap:8px}.health-insight-grid .daily-summary-tile{font:inherit;color:inherit;background:transparent;border:1px solid #dce6df;border-radius:12px;padding:16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:100px}.health-insight-grid .daily-summary-tile:hover,.health-insight-grid .daily-summary-tile[aria-expanded=true]{background:#eff7f1;border-color:#82b999}.health-insight-grid .daily-summary-tile strong{font-size:1.5rem}.daily-detail{border:1px solid #dce6df;border-radius:12px;padding:16px;margin:12px 0 18px;background:#fbfdfb}.daily-detail .health-alert-row{flex-wrap:wrap}@media(max-width:480px){.calf-bottom-actions button{flex:1;justify-content:center}}
+
+/* 3.0.2 – Kompakte Gesundheitsanzeige in der Dashboard-Begrüßung */
+.farmer-brand:has(.mini-health-overview){display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.mini-health-overview{display:inline-flex;align-items:center;gap:9px;border:1px solid #d6e3db;background:#fff;border-radius:14px;padding:5px 9px;min-height:54px;cursor:pointer;color:#213a2c;font:inherit}
+.mini-health-overview:focus-visible{outline:3px solid #24a56a;outline-offset:2px}
+.mini-health-ring{width:43px;height:43px;flex:none;border-radius:50%;display:grid;place-items:center}
+.mini-health-ring>span{width:31px;height:31px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:14px;font-weight:800}
+.mini-health-numbers{display:flex;gap:7px;font-size:13px;font-weight:700}
+.mini-health-numbers>span{display:flex;align-items:center;gap:3px}
+.mini-dot{display:inline-block;width:8px;height:8px;border-radius:50%}.mini-dot.green{background:#24a56a}.mini-dot.yellow{background:#e5b52e}.mini-dot.red{background:#d95252}
+#dashboard-health-overview{scroll-margin-top:20px}
+@media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:7px}.mini-health-overview{padding:4px 6px;gap:5px}.mini-health-numbers{gap:4px;font-size:12px}.mini-health-ring{width:36px;height:36px}.mini-health-ring>span{width:26px;height:26px;font-size:12px}}
