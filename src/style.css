@@ -182,3 +182,21 @@
 .stall-box-picker select{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0}
 .health-traffic-stats .traffic-all{font-weight:700}
 @media(max-width:760px){.stall-residents{grid-template-columns:minmax(0,1fr)}.stall-calf-card{width:100%;box-sizing:border-box}}
+
+/* 3.0.5 – responsive Begrüßung mit transparenter, interaktiver Gesundheitsanzeige */
+.farmer-brand:has(.mini-health-overview){display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"logo greeting" "health health";align-items:center;column-gap:14px;row-gap:12px;width:100%;max-width:560px}
+.farmer-brand:has(.mini-health-overview) .dashboard-logo{grid-area:logo;width:clamp(58px,12vw,80px);border-radius:14px}
+.farmer-brand:has(.mini-health-overview) .dashboard-greeting{grid-area:greeting;font-size:clamp(20px,4vw,29px);line-height:1.18}
+.mini-health-overview{grid-area:health;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:10px 18px;min-width:0;min-height:0;padding:10px 14px;border:1px solid #d9e6dc;border-radius:16px;background:transparent;color:#213a2c}
+.mini-health-ring-button{border:0;padding:0;background:transparent;display:grid;place-items:center;cursor:pointer;border-radius:50%;min-width:52px;min-height:52px}
+.mini-health-ring{width:52px;height:52px;animation:cm-ring-in .65s ease-out both}
+.mini-health-ring>span{width:37px;height:37px;background:#f5f8f5;font-size:16px}
+.mini-health-numbers{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-start}
+.mini-health-filter{display:inline-flex;align-items:center;gap:5px;padding:8px 9px;min-height:44px;border:1px solid transparent;border-radius:10px;background:transparent;font:inherit;font-size:15px;font-weight:750;color:inherit;cursor:pointer}
+.mini-health-filter:hover,.mini-health-filter:focus-visible{background:#e9f4ed;border-color:#bad7c5}
+.mini-health-filter .mini-dot{width:11px;height:11px}
+.mini-health-warning{flex-basis:100%;width:fit-content;max-width:100%;padding:5px 8px;border:0;border-radius:8px;background:#fff0ee;color:#9e3535;font:inherit;font-size:12px;font-weight:700;text-align:left;cursor:pointer}
+.mini-health-ring-button:focus-visible,.mini-health-filter:focus-visible,.mini-health-warning:focus-visible{outline:3px solid #26845c;outline-offset:2px}
+@keyframes cm-ring-in{from{opacity:.4;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.mini-health-ring{animation:none}}
+@media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:10px}.mini-health-overview{gap:7px 12px;padding:8px 10px}.mini-health-ring{width:47px;height:47px}.mini-health-ring>span{width:33px;height:33px;font-size:14px}.mini-health-filter{font-size:14px;padding:7px 8px}.farmer-brand:has(.mini-health-overview) .dashboard-greeting{font-size:clamp(19px,5vw,25px)}}
