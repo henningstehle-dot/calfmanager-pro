@@ -227,3 +227,23 @@ button,a,input,select,textarea,label,[role="button"]{touch-action:manipulation;}
 @media (pointer:coarse){
   input,select,textarea,.calf-inline-grid>label input,.calf-inline-grid>label select,.calf-inline-grid>label textarea{font-size:16px!important;}
 }
+
+/* v3.1.8 – kompakte Stallfütterung */
+.feeding-round-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.feeding-round{border:1px solid #cdd8d2;border-radius:9px;padding:10px 18px;min-height:44px;font-weight:700;color:#25382e;background:#fff;cursor:pointer}
+.feeding-round.morning.active,.feeding-total.morning{background:#e6f1fb;border-color:#a8cbe8}
+.feeding-round.noon.active,.feeding-total.noon{background:#fff3d9;border-color:#ebd29a}
+.feeding-round.evening.active,.feeding-total.evening{background:#e6f3e8;border-color:#b3d7b9}
+.feeding-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 18px}
+.feeding-total{display:flex;flex-direction:column;gap:4px;border:1px solid;border-radius:10px;padding:12px;min-width:0}
+.feeding-total small{font-size:12px}.feeding-total strong{font-size:21px}
+.feeding-compact-list{display:flex;flex-direction:column;gap:6px}
+.feeding-group{border:1px solid #dce6df;border-radius:10px;overflow:hidden}
+.feeding-calf-row{display:flex;align-items:center;gap:12px;min-height:49px;padding:5px 10px;flex-wrap:wrap;font-size:14px}
+.feeding-box-name{min-width:80px}.feeding-id{font-weight:650}.feeding-mother{color:#52665a;font-size:12px}
+.feeding-liters{margin-left:auto;white-space:nowrap}
+.feeding-status{width:65px;min-height:40px;padding:4px 6px;font-size:19px;border:1px solid #d2dcd5;border-radius:8px}
+.feeding-status.yellow{background:#fff1c8}.feeding-status.red{background:#fce1e1}.feeding-status.green{background:#e7f5e9}
+.feeding-box-toggle{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:49px;border:0;background:#f3f7f4;padding:10px 12px;color:inherit;cursor:pointer}
+.feeding-box-toggle span{font-size:12px;color:#53665a}.feeding-box-calves{border-top:1px solid #dce6df}.feeding-box-calves .feeding-calf-row+.feeding-calf-row{border-top:1px solid #edf1ed}
+@media(max-width:560px){.feeding-calf-row{gap:7px}.feeding-mother{flex:1 1 85px}.feeding-box-name{min-width:58px}.feeding-totals strong{font-size:18px}.feeding-total{padding:9px}}
