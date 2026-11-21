@@ -171,3 +171,14 @@
 .mini-health-numbers{display:flex;justify-content:center;gap:7px}
 .farmer-brand .dashboard-greeting{min-width:0}
 @media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:7px}.mini-health-overview{gap:3px;padding:4px 5px}.mini-health-numbers{gap:5px;font-size:11px}}
+
+/* 3.0.4 – Stallübersicht ohne horizontales Scrollen */
+.stall-residents{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px;margin-top:14px}
+.stall-calf-card{min-width:0;padding:15px;border:1px solid #dce7df;border-radius:13px;background:#fff}
+.stall-calf-header{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin-bottom:13px}
+.stall-calf-header .tag-link{text-align:left;white-space:normal;overflow-wrap:anywhere;min-width:0}
+.stall-calf-health{flex-shrink:0}
+.stall-box-picker{display:flex;flex-direction:column;gap:7px;margin:0;font-size:12px;color:#52685a}
+.stall-box-picker select{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0}
+.health-traffic-stats .traffic-all{font-weight:700}
+@media(max-width:760px){.stall-residents{grid-template-columns:minmax(0,1fr)}.stall-calf-card{width:100%;box-sizing:border-box}}
