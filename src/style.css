@@ -200,3 +200,11 @@
 @keyframes cm-ring-in{from{opacity:.4;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.mini-health-ring{animation:none}}
 @media(max-width:520px){.farmer-brand:has(.mini-health-overview){gap:10px}.mini-health-overview{gap:7px 12px;padding:8px 10px}.mini-health-ring{width:47px;height:47px}.mini-health-ring>span{width:33px;height:33px;font-size:14px}.mini-health-filter{font-size:14px;padding:7px 8px}.farmer-brand:has(.mini-health-overview) .dashboard-greeting{font-size:clamp(19px,5vw,25px)}}
+
+/* 3.0.6 – kompakter Verbindungsstatus direkt am Dashboard-Titel */
+.topbar-sync{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:11px;font-weight:600;color:#536b5d;white-space:nowrap;vertical-align:middle}
+.topbar-sync small{font-size:10px;font-weight:500;color:#75857a}
+.topbar-sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.topbar-sync-dot.online{background:#2eaa67}.topbar-sync-dot.offline{background:#d5a52b}.topbar-sync-dot.syncing{background:#398bd4}
+@media(max-width:760px){.topbar-sync{margin-left:5px;font-size:10px;gap:3px}.topbar-sync small{font-size:9px}.topbar .test-pill{padding:6px 7px;font-size:8px}}
+@media(max-width:390px){.topbar-sync small{display:none}.topbar-sync{margin-left:4px}}
