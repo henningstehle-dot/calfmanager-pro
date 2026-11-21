@@ -139,3 +139,13 @@
 .health-donut-legend button{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left}
 .health-donut-legend button span{font-size:24px}
 @media(max-width:520px){.health-donut-layout{justify-content:center}.health-donut-legend{width:100%}}
+
+/* Version 3.0.0: ruhigere, aufklappbare Dashboard-Übersichten */
+.dashboard-fold > summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:1.12rem; padding:2px 0; }
+.dashboard-fold > summary::-webkit-details-marker {display:none;}
+.dashboard-fold > summary span {transition:transform .2s;}
+.dashboard-fold[open] > summary span {transform:rotate(180deg);}
+.dashboard-fold[open] > .panel-head {margin-top:16px;}
+.dashboard-fold[open] > .panel-head h2 {display:none;}
+.milk-mat-bottom {margin-top:28px; padding-top:18px; border-top:1px solid var(--border, #dbe5df);}
+.milk-mat-bottom > h3 {margin-top:0;}
