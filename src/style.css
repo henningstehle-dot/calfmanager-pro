@@ -262,3 +262,31 @@ button,a,input,select,textarea,label,[role="button"]{touch-action:manipulation;}
 .dashboard-secondary-grid .navigation-tile .navigation-tile-name{font-size:13px}
 .farmer-content .topbar .menu{display:inline-flex;align-items:center;justify-content:center;color:#285b41;min-width:44px;min-height:44px;padding:7px;border-radius:9px;background:#f0f6f1;border:1px solid #d6e5da;flex-shrink:0}
 @media(max-width:760px){.dashboard-secondary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboard-secondary-grid .navigation-tile{min-height:86px}.dashboard-primary-grid .navigation-tile{min-height:110px}.farmer-content .topbar{gap:7px}.farmer-content .topbar .menu{min-width:40px;min-height:40px}}
+
+/* 3.2.0 development: one-row feeding controls on small screens */
+.feeding-calf-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1.15fr) auto 60px;gap:6px;align-items:center;min-height:48px}
+.feeding-box-calves .feeding-calf-row{grid-template-columns:minmax(0,1.5fr) minmax(0,1.15fr) auto 60px}
+.feeding-calf-row>*{min-width:0}.feeding-box-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.feeding-id{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.feeding-mother{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.feeding-liters{margin-left:0}
+.feeding-calf-link{background:none;border:0;padding:4px 0;color:#16634b;text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left;font:inherit;font-weight:700;min-height:40px}
+.feeding-status{width:60px;min-width:60px}
+.calf-profile-task{padding:12px 0;border-bottom:1px solid #e4ebe6}.calf-profile-task form{display:grid;gap:10px;margin-top:12px}
+@media(max-width:560px){.feeding-calf-row{gap:4px;padding:4px 6px;font-size:12px}.feeding-mother{font-size:11px;flex:initial}.feeding-box-name{min-width:0}.feeding-status{width:52px;min-width:52px;padding:4px 2px;font-size:17px}.feeding-box-calves .feeding-calf-row{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) auto 52px}.feeding-calf-row{grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) minmax(0,1fr) auto 52px}}
+
+/* v3.2.0: sichere Sammelumstallung */
+.move-calf-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.move-calf-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:12px 0 18px;max-height:290px;overflow:auto}.move-calf-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #dce6df;border-radius:10px;cursor:pointer}.move-calf-item input{width:20px;height:20px;flex-shrink:0}
+/* CalfManager 3.2.0: compact mobile feeding and practical workflows */
+.feeding-calf-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto 52px;align-items:center;gap:6px;min-height:46px;max-width:100%;overflow:hidden}
+.feeding-calf-row:has(.feeding-box-name){grid-template-columns:minmax(0,.7fr) minmax(0,1.2fr) minmax(0,1fr) auto 52px}
+.feeding-calf-row .feeding-id,.feeding-calf-row .feeding-mother{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.feeding-calf-row .feeding-status{width:50px;min-width:50px;max-width:50px;padding:4px 2px;min-height:38px}
+.feeding-calf-row .feeding-liters{white-space:nowrap}
+.calf-profile-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;background:#f2f8f4;padding:12px;border-radius:12px;margin-bottom:12px;font-size:.9rem}
+.calf-profile-tabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px}
+.calf-profile-tabs button{flex:0 0 auto;min-height:40px;border:1px solid #c7d9cd;border-radius:9px;background:white;padding:7px 10px}
+.calf-profile-tabs button.active{background:#17694d;color:white}
+.move-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin-bottom:14px}
+.move-calf-list{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.move-calf-list label{display:flex;align-items:center;gap:5px;padding:8px;background:#f3f7f4;border-radius:8px}
+.departure-panel{border-top:1px solid #d8e4db;margin-top:18px;padding-top:12px}
+@media(max-width:540px){.feeding-calf-row{font-size:.83rem;gap:4px}.feeding-calf-row .feeding-mother{font-size:.75rem}.feeding-calf-row .feeding-id{font-size:.78rem;padding:4px 1px}}
+.task-count-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;min-width:27px;height:27px;padding:0 7px;background:#c53333;color:#fff;font-weight:800;margin-left:5px}
