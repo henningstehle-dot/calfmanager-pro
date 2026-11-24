@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('Version 3.1.0 is displayed in app source', () => {
-  assert.match(read('../src/main.tsx'), /3\.1\.0/);
+test('Version 3.2.0 is displayed in app source', () => {
+  assert.match(read('../src/main.tsx'), /3\.2\.0/);
 });
 
 test('offline records are scoped to both user and farm', () => {
@@ -27,7 +27,7 @@ test('service worker only intercepts same-origin GET requests', () => {
 });
 
 test('service worker cache is versioned for this release', () => {
-  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-1-0/);
+  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-2-0/);
 });
 
 test('manifest exists and provides install metadata', () => {
