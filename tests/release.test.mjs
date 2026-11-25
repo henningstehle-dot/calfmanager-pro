@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('Version 3.2.0 is displayed in app source', () => {
-  assert.match(read('../src/main.tsx'), /3\.2\.0/);
+test('Version 3.2.1 is displayed in app source', () => {
+  assert.match(read('../src/main.tsx'), /3\.2\.1/);
 });
 
 test('offline records are scoped to both user and farm', () => {
@@ -27,7 +27,7 @@ test('service worker only intercepts same-origin GET requests', () => {
 });
 
 test('service worker cache is versioned for this release', () => {
-  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-2-0/);
+  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-2-1/);
 });
 
 test('manifest exists and provides install metadata', () => {
@@ -35,4 +35,12 @@ test('manifest exists and provides install metadata', () => {
   assert.ok(manifest.name || manifest.short_name);
   assert.equal(manifest.display, 'standalone');
   assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
+});
+
+test('farmer menu is absent and health controls precede profile tabs', () => {
+ const code = read('../src/main.tsx');
+ assert.match(code, /topbar">\{isAdmin&&<button className="menu"/);
+ const profile = code.slice(code.indexOf('function CalfDetails('));
+ assert.ok(profile.indexOf('className="calf-health-actions"') < profile.indexOf('className="calf-profile-tabs"'));
+ assert.match(profile, /aria-pressed=/);
 });
