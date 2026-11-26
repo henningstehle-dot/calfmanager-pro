@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('Version 3.2.3 is consistent in the app and npm metadata', () => {
-  assert.match(read('../src/main.tsx'), /VERSION 3\.2\.3/);
-  assert.equal(JSON.parse(read('../package.json')).version, '3.2.3');
+test('Version 3.2.4 is consistent in the app and npm metadata', () => {
+  assert.match(read('../src/main.tsx'), /VERSION 3\.2\.4/);
+  assert.equal(JSON.parse(read('../package.json')).version, '3.2.4');
   const lock = JSON.parse(read('../package-lock.json'));
-  assert.equal(lock.version, '3.2.3');
-  assert.equal(lock.packages[''].version, '3.2.3');
+  assert.equal(lock.version, '3.2.4');
+  assert.equal(lock.packages[''].version, '3.2.4');
 });
 
 test('offline records are scoped to both user and farm', () => {
@@ -31,7 +31,7 @@ test('service worker only intercepts same-origin GET requests', () => {
 });
 
 test('service worker cache is versioned for this release', () => {
-  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-2-3/);
+  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-2-4/);
 });
 
 test('manifest exists and provides install metadata', () => {
@@ -47,4 +47,14 @@ test('farmer menu is absent and health controls precede profile tabs', () => {
  const profile = code.slice(code.indexOf('function CalfDetails('));
  assert.ok(profile.indexOf('className="calf-health-actions"') < profile.indexOf('className="calf-profile-tabs"'));
  assert.match(profile, /aria-pressed=/);
+});
+
+test('workspace navigation hides weight page and provides birth weight and curve preview', () => {
+ const code = read('../src/main.tsx');
+ const tabs = code.match(/const tabs=\[.*?\] as const;/)[0];
+ assert.doesNotMatch(tabs, /Gewichte/);
+ assert.match(code, /<WorkspaceTiles title="Boxenübersicht"/);
+ assert.match(code, /<MilkCurveChart drafts=\{pointDrafts\}/);
+ assert.match(code, /name="birth_weight_kg"/);
+ assert.match(read('../supabase/migration_3_2_4.sql'), /add column if not exists birth_weight_kg/);
 });
