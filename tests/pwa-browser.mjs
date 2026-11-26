@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -11,10 +11,13 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.CALFMANAGER_PLAYWRIGHT || 'playwright-core');
 const repo = fileURLToPath(new URL('..', import.meta.url));
-const output = await mkdtemp(join(tmpdir(), 'calfmanager-pwa-'));
+const workspace = await mkdtemp(join(tmpdir(), 'calfmanager-pwa-'));
+const previousSource = join(workspace, 'previous');
+const previousOutput = join(workspace, '3.2.2');
+const output = join(workspace, '3.2.3');
 const base = '/calfmanager-pro/';
-const oldCache = 'calfmanager-shell-v3-2-1';
-const currentCache = 'calfmanager-shell-v3-2-2';
+const oldCache = 'calfmanager-shell-v3-2-2';
+const currentCache = 'calfmanager-shell-v3-2-3';
 const mobile = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 const contentTypes = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -22,7 +25,6 @@ const contentTypes = {
 };
 let oldRelease = true;
 let networkAvailable = true;
-let previousWorker;
 let browser;
 
 const server = createServer((request, response) => {
@@ -41,17 +43,7 @@ const server = createServer((request, response) => {
     return;
   }
   const file = path.slice(base.length) || 'index.html';
-  if (oldRelease && file === 'sw.js') {
-    response.writeHead(200, { 'Content-Type': 'text/javascript' }).end(previousWorker);
-    return;
-  }
-  if (oldRelease && file === 'index.html') {
-    response.writeHead(200, { 'Content-Type': 'text/html' }).end(`<!doctype html>
-      <h1>Installierte Version 3.2.1</h1>
-      <script>navigator.serviceWorker.register('./sw.js')</script>`);
-    return;
-  }
-  void readFile(join(output, file)).then(content => {
+  void readFile(join(oldRelease ? previousOutput : output, file)).then(content => {
     response.writeHead(200, { 'Content-Type': contentTypes[extname(file)] }).end(content);
   }, () => response.writeHead(404).end());
 });
@@ -76,12 +68,20 @@ try {
   });
   const origin = `http://127.0.0.1:${server.address().port}`;
   const app = `${origin}${base}`;
-  execFileSync(process.execPath, [join(repo, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', output, '--emptyOutDir'], {
-    cwd: repo,
-    stdio: 'inherit',
-    env: { ...process.env, GITHUB_REPOSITORY: 'fixture/calfmanager-pro', VITE_SUPABASE_URL: origin, VITE_SUPABASE_ANON_KEY: 'local-fixture-only' },
-  });
-  previousWorker = execFileSync('git', ['show', '144db00:public/sw.js'], { cwd: repo, encoding: 'utf8' });
+  // Serve both real builds with the same GitHub Pages base and local API URL.
+  const archive = join(workspace, '3.2.2.tar');
+  await mkdir(previousSource);
+  execFileSync('git', ['archive', '--output', archive, 'c6330a00f2b2743b67a8384e5d403c46245bac4c'], { cwd: repo });
+  execFileSync('tar', ['-xf', archive, '-C', previousSource]);
+  await symlink(join(repo, 'node_modules'), join(previousSource, 'node_modules'));
+  const buildEnvironment = { ...process.env, GITHUB_REPOSITORY: 'fixture/calfmanager-pro',
+    VITE_SUPABASE_URL: origin, VITE_SUPABASE_ANON_KEY: 'local-fixture-only' };
+  for (const [source, destination] of [[previousSource, previousOutput], [repo, output]]) {
+    execFileSync(process.execPath, [join(repo, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', destination, '--emptyOutDir'], {
+      cwd: source, stdio: 'inherit', env: buildEnvironment,
+    });
+  }
+  assert.match(await readFile(join(previousOutput, 'sw.js'), 'utf8'), new RegExp(oldCache));
   const assets = await readdir(join(output, 'assets'));
   assert.ok(assets.some(file => file.endsWith('.js')) && assets.some(file => file.endsWith('.css')));
   browser = await chromium.launch({ executablePath: process.env.CALFMANAGER_CHROMIUM || '/usr/bin/chromium' });
@@ -89,11 +89,16 @@ try {
   const upgrading = await browser.newContext(mobile);
   const current = await upgrading.newPage();
   await current.goto(app);
-  await current.getByRole('heading', { name: 'Installierte Version 3.2.1' }).waitFor();
+  await current.getByRole('heading', { name: 'Anmelden', exact: true }).waitFor();
   await current.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  assert.deepEqual(await current.evaluate(() => caches.keys()), [oldCache]);
+  const previousScript = await current.locator('script[type="module"][src]').getAttribute('src');
+  assert.ok(previousScript);
   oldRelease = false;
   await current.reload();
   await current.getByRole('heading', { name: 'Anmelden', exact: true }).waitFor();
+  const currentScript = await current.locator('script[type="module"][src]').getAttribute('src');
+  assert.ok(currentScript && currentScript !== previousScript);
   await current.evaluate(async () => (await navigator.serviceWorker.ready).update());
   const waiting = await waitForBrowserState(
     () => current.evaluate(async ({ currentCache, base }) => {
@@ -126,8 +131,9 @@ try {
   const afterUpgrade = await upgrading.newPage();
   await afterUpgrade.goto(app);
   await afterUpgrade.getByRole('heading', { name: 'Anmelden', exact: true }).waitFor();
+  assert.equal(await afterUpgrade.locator('script[type="module"][src]').getAttribute('src'), currentScript);
   await upgrading.close();
-  console.log('Chromium 390 × 844: 3.2.1 → 3.2.2, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
+  console.log('Chromium 390 × 844: 3.2.2 → 3.2.3, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
 
   networkAvailable = true;
   const fresh = await browser.newContext(mobile);
@@ -143,5 +149,5 @@ try {
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
-  await rm(output, { recursive: true, force: true });
+  await rm(workspace, { recursive: true, force: true });
 }

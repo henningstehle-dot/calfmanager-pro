@@ -41,3 +41,19 @@ begin
   where id = p_event_id and farm_id = p_farm_id;
 end;
 $$;
+
+-- Nachbildung der bereits in 3.2.2 verwendeten Fütterungstabelle für lokale Tests.
+create table public.calf_feeding_rounds (
+  farm_id uuid not null,
+  calf_id uuid not null,
+  feeding_date date not null,
+  round text not null check (round in ('morning', 'noon', 'evening')),
+  status text not null check (status in ('green', 'yellow', 'red')),
+  updated_at timestamptz not null default now(),
+  primary key (farm_id, calf_id, feeding_date, round),
+  foreign key (calf_id, farm_id) references public.calves(id, farm_id)
+);
+alter table public.calf_feeding_rounds enable row level security;
+create policy feeding_rounds_member on public.calf_feeding_rounds to authenticated
+  using (public.is_farm_member(farm_id)) with check (public.is_farm_member(farm_id));
+grant select, insert, update on public.calf_feeding_rounds to authenticated;

@@ -102,6 +102,11 @@ try {
   });
   assert.deepEqual(state.unexpected, []);
   console.log('Chromium (1366 × 900) prüfte Vorlagen, MAT-Einstellungen, Mitarbeiterrechte und konkurrierende Bestätigungen gegen den Mock einschließlich Erledigungsprotokoll.');
+
+  state = makeFixture();
+  await verifyFeedingStatus(browser, mobile, app);
+  assert.deepEqual(state.unexpected, []);
+  console.log('Chromium (390 × 844) prüfte die Fütterungsampel über Runden und Tageswechsel, Bestätigungen, Historie, Mitarbeiterrechte und Betriebswechsel.');
 } finally {
   await browser?.close();
   if (server.listening) await new Promise(resolve => server.close(resolve));
@@ -358,6 +363,173 @@ async function treatmentFlow(page) {
   await assertDueCount(page, 2);
 }
 
+async function verifyFeedingStatus(browser, mobile, app) {
+  const otherFarm = { ...farm, id: '22222222-2222-4222-8222-333333333333', name: 'Zweiter Betrieb' };
+  const otherCalf = { ...calf, id: '33333333-3333-4333-8333-555555555555',
+    farm_id: otherFarm.id, box_id: null, health_status: 'red' };
+  const singleBox = { ...boxes[0], id: '55555555-5555-4555-8555-333333333333', kind: 'single', name: 'Iglu' };
+  state.farmIdsByUser = { [owner.id]: [farm.id, otherFarm.id], [employee.id]: [farm.id] };
+  state.tables.farms = [...state.tables.farms, otherFarm];
+  state.tables.calves.push(otherCalf);
+  state.tables.farm_boxes = [...state.tables.farm_boxes, singleBox];
+  const grouped = state.tables.calves.find(row => row.id === calf.id);
+  const single = state.tables.calves.find(row => row.id === secondCalf.id);
+  single.box_id = singleBox.id;
+  state.tables.farm_milk_curves[0].feedings_per_day = 3;
+  const historicalRound = { farm_id: farm.id, calf_id: calf.id, round: 'morning', status: 'green',
+    feeding_date: dateOffset(initialDate, -1), updated_at: `${dateOffset(initialDate, -1)}T06:30:00Z` };
+  const documentedEvening = { ...historicalRound, calf_id: secondCalf.id, round: 'evening', feeding_date: initialDate };
+  const historicalEvent = { id: '66666666-6666-4666-8666-111111111111', farm_id: farm.id,
+    calf_id: calf.id, kind: 'feeding', event_date: historicalRound.feeding_date, details: 'Bestandstränke', milk_liters: 3.5 };
+  state.tables.calf_feeding_rounds.push(structuredClone(historicalRound), structuredClone(documentedEvening));
+  state.tables.calf_events.push(structuredClone(historicalEvent));
+
+  async function openFeeding(page) {
+    await navigate(page, 'Fütterung');
+    await page.getByRole('button', { name: /Box Nord/ }).click();
+  }
+  const picker = (page, animal) => page.getByLabel(`Tränkestatus ${animal.ear_tag}`);
+  async function expectStatus(page, animal, status) {
+    await page.locator(`select.feeding-status.${status}:not([disabled])`).and(picker(page, animal)).waitFor();
+    assert.equal(await picker(page, animal).inputValue(), status);
+  }
+  const round = (page, name) => page.getByRole('group', { name: 'Fütterungsrunde' }).getByRole('button', { name, exact: true }).click();
+  const statusWrites = () => state.requests.filter(request => request.route === 'PATCH /rest/v1/calves' && request.body.health_status);
+  const healthHistory = id => state.tables.calf_events.filter(event => event.kind === 'health' && event.calf_id === id);
+
+  await withPage(browser, mobile, async page => {
+    await login(page, app, owner);
+    await page.getByText('VERSION 3.2.3', { exact: true }).waitFor();
+    await openFeeding(page);
+    await picker(page, calf).selectOption('yellow');
+    await expectStatus(page, calf, 'yellow');
+    await picker(page, secondCalf).selectOption('red');
+    await expectStatus(page, secondCalf, 'red');
+    for (const name of ['Mittag', 'Abend', 'Früh']) {
+      await round(page, name);
+      await expectStatus(page, calf, 'yellow');
+      await expectStatus(page, secondCalf, 'red');
+    }
+    assert.equal(state.tables.calf_feeding_rounds.length, 4);
+    assert.equal(statusWrites().length, 2);
+    assert.equal(healthHistory(calf.id).length, 1);
+    assert.equal(healthHistory(secondCalf.id).length, 1);
+    const firstRedRound = structuredClone(state.tables.calf_feeding_rounds.find(row =>
+      row.calf_id === secondCalf.id && row.round === 'morning'));
+    assert.equal(firstRedRound.status, 'red');
+
+    // A cancelled red → green change leaves current and historical data intact.
+    const prompts = [];
+    page.once('dialog', async dialog => { prompts.push(dialog.message()); await dialog.dismiss(); });
+    await picker(page, secondCalf).selectOption('green');
+    await expectStatus(page, secondCalf, 'red');
+    assert.match(prompts[0], /Kalb auf Grün setzen/);
+    assert.equal(statusWrites().length, 2);
+
+    await dashboard(page);
+    await navigate(page, 'Kälber');
+    await page.getByRole('button', { name: /1 Aufmerksamkeit/ }).click();
+    await page.getByRole('region', { name: 'Gefilterte Kälber' }).getByRole('button', { name: calf.ear_tag }).waitFor();
+    await page.getByRole('button', { name: /1 in Behandlung \/ krank/ }).click();
+    await page.getByRole('region', { name: 'Gefilterte Kälber' }).getByRole('button', { name: secondCalf.ear_tag }).click();
+    const profile = page.getByRole('dialog', { name: `Kalb ${secondCalf.ear_tag}` });
+    await profile.getByRole('button', { name: '🔴 Rot', exact: true, pressed: true }).waitFor();
+    await profile.getByRole('button', { name: 'Schließen', exact: true }).click();
+
+    // A confirmed change still updates the calf when this round already has a snapshot.
+    await dashboard(page);
+    await openFeeding(page);
+    const acceptGreen = async dialog => {
+      prompts.push(dialog.message());
+      if (dialog.message().includes('Kalb auf Grün setzen?')) await dialog.accept();
+      else await dialog.dismiss();
+    };
+    page.on('dialog', acceptGreen);
+    await picker(page, secondCalf).selectOption('green');
+    await expectStatus(page, secondCalf, 'green');
+    page.off('dialog', acceptGreen);
+    assert.equal(prompts.length, 3);
+    assert.match(prompts[2], /offenen Krankheitsfälle/);
+    assert.deepEqual(state.tables.calf_feeding_rounds.find(row =>
+      row.calf_id === secondCalf.id && row.round === 'morning'), firstRedRound);
+    assert.equal(healthHistory(secondCalf.id).length, 2);
+
+    // The visible value is stale. A concurrent change to red must win and trigger reloading.
+    grouped.health_status = 'red';
+    await picker(page, calf).selectOption('green');
+    await page.getByText(/Ampel konnte nicht geändert werden/).waitFor();
+    await expectStatus(page, calf, 'red');
+    assert.equal(healthHistory(calf.id).length, 1);
+    await picker(page, calf).selectOption('yellow');
+    await expectStatus(page, calf, 'yellow');
+    await round(page, 'Abend');
+    await picker(page, secondCalf).selectOption('red');
+    await expectStatus(page, secondCalf, 'red');
+
+    await dashboard(page);
+    const farmPicker = page.getByRole('combobox', { name: 'Betrieb auswählen' }).filter({ visible: true });
+    await farmPicker.selectOption(otherFarm.id);
+    await navigate(page, 'Fütterung');
+    await page.getByRole('button', { name: /Ohne Box/ }).click();
+    await expectStatus(page, otherCalf, 'red');
+    assert.equal(await picker(page, secondCalf).count(), 0);
+  });
+
+  // A new login at the next day's morning loads statuses from persisted calves.
+  state.today = switchingDay;
+  await withPage(browser, mobile, async page => {
+    await page.clock.setFixedTime(new Date(`${switchingDay}T06:00:00Z`));
+    await login(page, app, employee);
+    assert.equal(await page.locator(`option[value="${otherFarm.id}"]`).count(), 0);
+    await openFeeding(page);
+    await expectStatus(page, calf, 'yellow');
+    await expectStatus(page, secondCalf, 'red');
+    const writesBefore = statusWrites().length;
+    await page.getByRole('button', { name: secondCalf.ear_tag, exact: true }).click();
+    const profile = page.getByRole('dialog', { name: `Kalb ${secondCalf.ear_tag}` });
+    await profile.getByRole('button', { name: '🟡 Gelb', exact: true }).click();
+    await profile.getByRole('button', { name: '🟡 Gelb', exact: true, pressed: true }).waitFor();
+    await profile.getByRole('button', { name: 'Schließen', exact: true }).click();
+    await expectStatus(page, secondCalf, 'yellow');
+    await round(page, 'Mittag');
+    await expectStatus(page, secondCalf, 'yellow');
+    assert.equal(statusWrites().length, writesBefore + 1);
+    assert.equal(statusWrites().at(-1).userId, employee.id);
+    assert.equal(statusWrites().at(-1).query.farm_id, `eq.${farm.id}`);
+    assert.equal(otherCalf.health_status, 'red');
+    assert.equal(state.tables.calf_feeding_rounds.length, 4);
+    assert.deepEqual(state.tables.calf_feeding_rounds[0], historicalRound);
+    assert.deepEqual(state.tables.calf_feeding_rounds[1], documentedEvening);
+    assert.deepEqual(state.tables.calf_events.find(event => event.id === historicalEvent.id), historicalEvent);
+
+    await round(page, 'Abend');
+    await picker(page, calf).selectOption('red');
+    await expectStatus(page, calf, 'red');
+    assert.ok(state.tables.calf_feeding_rounds.some(row =>
+      row.calf_id === calf.id && row.feeding_date === switchingDay && row.round === 'evening' && row.status === 'red'));
+    assert.equal(state.tables.calf_events.filter(event => event.calf_id === calf.id && event.details.startsWith('[AUTO-GESUNDHEIT]')).length, 1);
+    assert.equal(state.tables.calf_events.find(event =>
+      event.calf_id === calf.id && event.details.startsWith('[AUTO-GESUNDHEIT]')).priority, 'urgent');
+
+    const openCase = { id: '66666666-6666-4666-8666-222222222222', farm_id: farm.id,
+      calf_id: calf.id, onset_date: switchingDay, status: 'open', diagnosis: 'Testfall' };
+    state.tables.calf_health_cases.push(openCase);
+    await page.getByRole('button', { name: calf.ear_tag, exact: true }).click();
+    const redProfile = page.getByRole('dialog', { name: `Kalb ${calf.ear_tag}` });
+    const confirmBoth = dialog => dialog.accept();
+    page.on('dialog', confirmBoth);
+    const profileReload = page.waitForResponse(response => response.url().includes('/calves') && response.request().method() === 'GET');
+    await redProfile.getByRole('button', { name: '🟢 Grün', exact: true }).click();
+    await redProfile.getByRole('button', { name: '🟢 Grün', exact: true, pressed: true }).waitFor();
+    await redProfile.getByRole('button', { name: 'Schließen', exact: true }).click();
+    await profileReload;
+    page.off('dialog', confirmBoth);
+    assert.equal(openCase.status, 'recovered');
+    assert.equal(openCase.resolved_on, switchingDay);
+    await expectStatus(page, calf, 'green');
+  });
+}
+
 async function feedingAndMat(page) {
   await navigate(page, 'Fütterung');
   const planner = page.locator('.milk-planner');
@@ -399,7 +571,7 @@ async function feedingAndMat(page) {
 async function offlineWeight(page, context) {
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cacheNames = await page.evaluate(() => caches.keys());
-  assert.ok(cacheNames.includes('calfmanager-shell-v3-2-2'));
+  assert.ok(cacheNames.includes('calfmanager-shell-v3-2-3'));
   assert.ok(!cacheNames.includes('calfmanager-shell-v3-2-1'));
   await dashboard(page);
   await navigate(page, 'Gewichte');
