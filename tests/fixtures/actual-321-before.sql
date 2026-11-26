@@ -27,6 +27,13 @@ insert into public.calf_events(id,farm_id,calf_id,kind,details,event_date,due_da
 
 set role authenticated;
 select set_config('request.jwt.claim.sub','32100000-0000-4000-8000-000000000001',false) as actor \gset
+insert into public.calf_feeding_rounds(id,farm_id,calf_id,feeding_date,round,status,updated_at)
+values ('32100000-0000-4000-8000-000000000061','32100000-0000-4000-8000-000000000011',
+  '32100000-0000-4000-8000-000000000021','2025-01-15','evening','yellow','2025-01-15 18:30:00+01');
+insert into public.calf_events(id,farm_id,calf_id,kind,event_date,details,milk_liters)
+values ('32100000-0000-4000-8000-000000000042','32100000-0000-4000-8000-000000000011',
+  '32100000-0000-4000-8000-000000000021','feeding','2025-01-15','Fütterung vor der Migration',3.5);
+
 insert into public.farm_treatment_templates_320(id,farm_id,name,days,times_per_day,is_halocur)
 values ('32100000-0000-4000-8000-000000000051','32100000-0000-4000-8000-000000000011','Reine Testvorlage',2,2,false);
 
