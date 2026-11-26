@@ -9,6 +9,10 @@ begin
   if to_regprocedure('public.complete_farm_task_320(uuid,uuid)') is null
     or to_regclass('public.farm_treatment_templates_320') is null
     or to_regclass('public.farm_treatment_settings_320') is null
+    or to_regclass('public.calf_task_completions_320') is null
+    or to_regclass('public.calf_treatment_administrations_320') is null
+    or to_regclass('public.calf_treatment_plans_320') is null
+    or to_regclass('public.farm_growth_settings') is null
     or to_regclass('public.calf_followups') is null
     or to_regclass('public.calf_treatments') is null
     or to_regclass('public.calf_vaccinations') is null
@@ -26,6 +30,10 @@ begin
   end if;
 end
 $prerequisites$;
+
+-- Die App verwendet diese Tabelle bereits für die Mindestzunahme. Der
+-- 3.2.1-Stand enthält die Mitglieder-/Inhaber-RLS, aber keine DML-Grants.
+grant select, insert, update on public.farm_growth_settings to authenticated;
 
 create table public.farm_task_templates_322 (
   id uuid primary key default gen_random_uuid(),
@@ -47,7 +55,7 @@ create policy "task templates owner insert" on public.farm_task_templates_322 fo
   to authenticated with check (public.is_farm_owner(farm_id));
 create policy "task templates owner update" on public.farm_task_templates_322 for update
   to authenticated using (public.is_farm_owner(farm_id)) with check (public.is_farm_owner(farm_id));
-revoke all on public.farm_task_templates_322 from public, anon, authenticated;
+revoke all on public.farm_task_templates_322 from public, anon, authenticated, service_role;
 grant select on public.farm_task_templates_322 to authenticated;
 grant insert (farm_id, name, description, recurring, times_per_day, duration_days, active)
   on public.farm_task_templates_322 to authenticated;
@@ -82,7 +90,7 @@ create table public.calf_task_assignments_322 (
 );
 alter table public.calf_task_assignments_322 enable row level security;
 -- Direkter Zugriff bleibt gesperrt. Alle Zugriffe laufen über betriebsgeprüfte RPCs.
-revoke all on public.calf_task_assignments_322 from public, anon, authenticated;
+revoke all on public.calf_task_assignments_322 from public, anon, authenticated, service_role;
 create index calf_task_assignments_322_open
   on public.calf_task_assignments_322 (farm_id, starts_on, calf_id) where ended_at is null;
 
@@ -134,17 +142,10 @@ language sql stable security definer set search_path = '' as $$
   where u.id = p_user_id
 $$;
 
--- Alte Behandlungseinträge behalten ihre Daten und ihre ursprüngliche
--- Arzneimitteldokumentation. Die Serienkennung wird nur aus geteilten Merkmalen
--- abgeleitet. Einträge ohne erkennbare Serie werden einzeln geführt.
-create function public._legacy_treatment_group_322(p_event jsonb) returns text
+-- schedule_treatment_320 schreibt die Plan-ID in einen exakten Marker.
+create function public._legacy_treatment_group_322(p_details text) returns text
 language sql immutable set search_path = '' as $$
-  select case when p_event->>'details' like '[BEHANDLUNG:%' then coalesce(
-    nullif(p_event->>'treatment_plan_id', ''),
-    nullif(p_event->>'treatment_schedule_id', ''),
-    nullif(p_event->>'treatment_run_id', ''),
-    substring(p_event->>'details' from '^\[BEHANDLUNG:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\]|[^0-9a-fA-F-])')
-  ) end
+  select lower(substring(p_details from '^\[BEHANDLUNG:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]'))
 $$;
 
 create function public._guard_calf_task_events_322() returns trigger
@@ -160,6 +161,13 @@ begin
   end if;
 
   if tg_op = 'UPDATE' and old.kind = 'task' then
+    -- Der bestehende Auth-Fremdschlüssel räumt nur die optionale
+    -- Zuweisung auf. Durchführung und Auditdaten bleiben erhalten.
+    if pg_trigger_depth() > 1 and old.assigned_to is not null and new.assigned_to is null
+      and (to_jsonb(new) - 'assigned_to') = (to_jsonb(old) - 'assigned_to')
+    then
+      return new;
+    end if;
     if current_user in ('authenticated','anon') and old.details like '[BEHANDLUNG:%' and new is distinct from old then
       raise exception 'Diese Behandlung kann nur über die Aufgabenfunktion geändert werden.' using errcode = '42501';
     end if;
@@ -191,22 +199,13 @@ begin
       raise exception 'Diese Aufgabe kann nur über die Aufgabenfunktion geändert werden.' using errcode = '42501';
     end if;
 
-    if new.task_status = 'done' and (tg_op = 'INSERT' or old.task_status is distinct from 'done') then
-      if auth.uid() is not null then
-        new.task_completed_at_322 := clock_timestamp();
-        new.task_completed_by_322 := auth.uid();
-        if new.task_assignment_id_322 is not null then
-          new.event_date := (new.task_completed_at_322 at time zone 'Europe/Berlin')::date;
-        end if;
-        -- Die Sicherheitsfunktion ist für diese Ausführung über den RPC-Eigner aufrufbar.
-        -- Bei einem direkten 3.2.1-Eintrag bleibt die Benutzer-ID aus auth.uid() erhalten.
-        if current_user not in ('authenticated','anon') then
-          new.task_completed_by_name_322 := public._task_actor_name_322(auth.uid());
-        else
-          new.task_completed_by_name_322 := null;
-        end if;
-      end if;
+    if new.task_assignment_id_322 is not null and tg_op = 'INSERT' and auth.uid() is not null then
+      new.task_completed_at_322 := clock_timestamp();
+      new.event_date := (new.task_completed_at_322 at time zone 'Europe/Berlin')::date;
+      new.task_completed_by_322 := auth.uid();
+      new.task_completed_by_name_322 := public._task_actor_name_322(auth.uid());
     elsif tg_op = 'INSERT' or old.task_status is distinct from 'done' then
+      -- Altaufgaben behalten die kanonische 3.2.0-Erledigungstabelle.
       new.task_completed_at_322 := null;
       new.task_completed_by_322 := null;
       new.task_completed_by_name_322 := null;
@@ -270,6 +269,13 @@ create trigger keep_calf_treatments_322 before delete on public.calf_treatments
   for each row execute function public._keep_medical_history_322();
 create trigger keep_calf_vaccinations_322 before delete on public.calf_vaccinations
   for each row execute function public._keep_medical_history_322();
+
+-- TRUNCATE löst keine Zeilen-Trigger aus. Die geerbten Wartungsrechte bleiben
+-- bestehen. Die Anwendungsrollen benötigen kein TRUNCATE für die Historie.
+revoke truncate on public.calf_events, public.calf_followups, public.calf_treatments,
+  public.calf_vaccinations, public.calf_treatment_plans_320,
+  public.calf_treatment_administrations_320, public.calf_task_completions_320
+from public, anon, authenticated, service_role;
 
 create function public.create_farm_tasks_322(
   p_farm_id uuid, p_calf_ids uuid[], p_template_id uuid, p_name text,
@@ -380,7 +386,7 @@ create policy "mat owner update" on public.farm_mat_settings
   for update to authenticated using (public.is_farm_owner(farm_id))
   with check (public.is_farm_owner(farm_id));
 
-revoke all on public.farm_mat_settings from public, anon, authenticated;
+revoke all on public.farm_mat_settings from public, anon, authenticated, service_role;
 grant select, insert, update on public.farm_mat_settings to authenticated;
 
 -- Bestehende MAT-Tränkekurven geben Gramm je Liter fertiger Mischung an.
@@ -403,18 +409,19 @@ create type public._task_row_322 as (
 );
 
 -- Die 3.2.0-App verwendete calf_events für einfache und medizinische
--- Erinnerungen. Optionale Metadaten älterer Einträge bleiben lesbar.
+-- Erinnerungen. Die bestehende Erledigungstabelle liefert deren Auditdaten.
 create function public._legacy_task_rows_322(p_farm_id uuid, p_calf_id uuid, p_today date)
 returns setof public._task_row_322
 language sql stable set search_path = '' as $$
   with events as (
     select e.*, c.ear_tag, c.box_id, (c.status = 'active' and c.archived_at is null) as calf_active,
-      public._legacy_treatment_group_322(to_jsonb(e)) as treatment_group,
+      public._legacy_treatment_group_322(e.details) as treatment_group,
       coalesce(e.due_date, e.event_date) as planned_date,
       e.details like '[BEHANDLUNG:%' as treatment,
-      to_jsonb(e) as metadata
+      completion.completed_at as actual_at, completion.completed_by as actual_by
     from public.calf_events e
     join public.calves c on c.id = e.calf_id and c.farm_id = e.farm_id
+    left join public.calf_task_completions_320 completion on completion.task_id = e.id and completion.farm_id = e.farm_id
     where e.farm_id = p_farm_id and (p_calf_id is null or e.calf_id = p_calf_id)
       and e.kind = 'task' and e.task_assignment_id_322 is null
   ), dated as (
@@ -423,16 +430,7 @@ language sql stable set search_path = '' as $$
       max(planned_date) over (partition by calf_id, coalesce(treatment_group, id::text)) as treatment_end,
       count(*) over (partition by calf_id, coalesce(treatment_group, id::text), planned_date)::integer as treatment_times,
       row_number() over (partition by calf_id, coalesce(treatment_group, id::text), planned_date
-        order by created_at, id)::integer as treatment_occurrence,
-      coalesce(task_completed_at_322,
-        nullif(metadata->>'task_completed_at','')::timestamptz,
-        nullif(metadata->>'completed_at','')::timestamptz
-      ) as actual_at,
-      coalesce(task_completed_by_322,
-        case when coalesce(metadata->>'task_completed_by', metadata->>'completed_by', '')
-          ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          then coalesce(metadata->>'task_completed_by', metadata->>'completed_by')::uuid end
-      ) as actual_by
+        order by created_at, id)::integer as treatment_occurrence
     from events e
   )
   select 'legacy'::text, null::uuid, d.id, d.treatment_group, d.calf_id, d.ear_tag, d.box_id,
@@ -452,11 +450,8 @@ language sql stable set search_path = '' as $$
       substring(d.details from 'Tag[[:space:]]+[0-9]{1,3}[[:space:]]*(?:/|von)[[:space:]]*([0-9]{1,3})')::integer,
       case when d.treatment_group is not null then d.treatment_end - d.treatment_start + 1 end
     ) end,
-    d.actual_at, coalesce(
-      (d.actual_at at time zone 'Europe/Berlin')::date,
-      nullif(d.metadata->>'task_completed_on','')::date,
-      nullif(d.metadata->>'completed_on','')::date
-    ), d.actual_by, coalesce(d.task_completed_by_name_322, public._task_actor_name_322(d.actual_by)),
+    d.actual_at, (d.actual_at at time zone 'Europe/Berlin')::date,
+    d.actual_by, public._task_actor_name_322(d.actual_by),
     case
       when d.task_status = 'done' then 'completed'
       when d.planned_date < p_today then 'overdue'
@@ -620,52 +615,31 @@ $$;
 -- aufrufen. Eine vorgeschaltete Zeilensperre schützt auch diese Aufrufe.
 -- Der bisherige Rückgabetyp und die Arzneimittellogik bleiben erhalten.
 alter function public.complete_farm_task_320(uuid,uuid) rename to _complete_farm_task_original_320;
-revoke all on function public._complete_farm_task_original_320(uuid,uuid) from public, anon, authenticated;
+revoke all on function public._complete_farm_task_original_320(uuid,uuid) from public, anon, authenticated, service_role;
 
-do $legacy_wrapper$
+create function public.complete_farm_task_320(p_farm_id uuid, p_event_id uuid) returns void
+language plpgsql security definer set search_path = '' as $$
 declare
-  v_result text;
-  v_returns_set boolean;
-  v_call text;
+  v_event public.calf_events%rowtype;
 begin
-  select pg_get_function_result(p.oid), p.proretset into v_result, v_returns_set
-  from pg_proc p where p.oid = 'public._complete_farm_task_original_320(uuid,uuid)'::regprocedure;
-
-  v_call := case
-    when v_returns_set then 'return query select * from public._complete_farm_task_original_320(p_farm_id,p_event_id);'
-    when v_result = 'void' then 'perform public._complete_farm_task_original_320(p_farm_id,p_event_id); return;'
-    else 'return public._complete_farm_task_original_320(p_farm_id,p_event_id);'
-  end;
-
-  execute format($definition$
-    create function public.complete_farm_task_320(p_farm_id uuid, p_event_id uuid) returns %s
-    language plpgsql security definer set search_path = '' as $body$
-    declare
-      v_event public.calf_events%%rowtype;
-    begin
-      if auth.uid() is null or not public.is_farm_member(p_farm_id) then
-        raise exception 'Kein Zugriff auf diesen Betrieb.' using errcode = '42501';
-      end if;
-      select e.* into v_event from public.calf_events e
-      join public.calves c on c.id = e.calf_id and c.farm_id = e.farm_id
-      where e.id = p_event_id and e.farm_id = p_farm_id and e.kind = 'task'
-        and e.task_assignment_id_322 is null and c.status = 'active' and c.archived_at is null
-      for update of e for share of c;
-      if not found or v_event.task_ended_at_322 is not null
-        or coalesce(v_event.task_status::text, 'open') in ('cancelled', 'canceled', 'ended')
-      then
-        raise exception 'Die Aufgabe ist nicht mehr offen.' using errcode = '22023';
-      end if;
-      if v_event.task_status = 'done' then
-        raise exception 'Diese Durchführung wurde bereits dokumentiert.' using errcode = '23514';
-      end if;
-      %s
-    end;
-    $body$;
-  $definition$, v_result, v_call);
-end
-$legacy_wrapper$;
-revoke all on function public.complete_farm_task_320(uuid,uuid) from public, anon, authenticated;
+  if auth.uid() is null or not public.is_farm_member(p_farm_id) then
+    raise exception 'Kein Zugriff auf diesen Betrieb.' using errcode = '42501';
+  end if;
+  select e.* into v_event from public.calf_events e
+  join public.calves c on c.id = e.calf_id and c.farm_id = e.farm_id
+  where e.id = p_event_id and e.farm_id = p_farm_id and e.kind = 'task'
+    and e.task_assignment_id_322 is null and c.status = 'active' and c.archived_at is null
+  for update of e for share of c;
+  if not found or v_event.task_ended_at_322 is not null then
+    raise exception 'Die Aufgabe ist nicht mehr offen.' using errcode = '22023';
+  end if;
+  if v_event.task_status = 'done' then
+    raise exception 'Diese Durchführung wurde bereits dokumentiert.' using errcode = '23514';
+  end if;
+  perform public._complete_farm_task_original_320(p_farm_id, p_event_id);
+end;
+$$;
+revoke all on function public.complete_farm_task_320(uuid,uuid) from public, anon, authenticated, service_role;
 grant execute on function public.complete_farm_task_320(uuid,uuid) to authenticated;
 
 create function public.complete_farm_tasks_322(p_farm_id uuid, p_tasks jsonb) returns integer
@@ -798,25 +772,25 @@ begin
   if not found then
     raise exception 'Diese Aufgabe ist in diesem Betrieb nicht vorhanden.' using errcode = '22023';
   end if;
-  v_group := public._legacy_treatment_group_322(to_jsonb(v_event));
+  v_group := public._legacy_treatment_group_322(v_event.details);
 
   perform e.id from public.calf_events e
   where e.farm_id = p_farm_id and e.calf_id = v_event.calf_id and e.kind = 'task'
     and e.task_assignment_id_322 is null and e.task_ended_at_322 is null
     and e.task_status is distinct from 'done'
-    and (e.id = p_event_id or (v_group is not null and public._legacy_treatment_group_322(to_jsonb(e)) = v_group))
+    and (e.id = p_event_id or (v_group is not null and public._legacy_treatment_group_322(e.details) = v_group))
   order by e.id for update;
   update public.calf_events e set task_ended_at_322 = statement_timestamp(), task_ended_by_322 = v_actor
   where e.farm_id = p_farm_id and e.calf_id = v_event.calf_id and e.kind = 'task'
     and e.task_assignment_id_322 is null and e.task_ended_at_322 is null
     and e.task_status is distinct from 'done'
-    and (e.id = p_event_id or (v_group is not null and public._legacy_treatment_group_322(to_jsonb(e)) = v_group));
+    and (e.id = p_event_id or (v_group is not null and public._legacy_treatment_group_322(e.details) = v_group));
 end;
 $$;
 
 revoke all on function
   public._task_actor_name_322(uuid),
-  public._legacy_treatment_group_322(jsonb),
+  public._legacy_treatment_group_322(text),
   public._guard_calf_task_events_322(),
   public._guard_followup_history_322(),
   public._keep_medical_history_322(),
@@ -828,7 +802,7 @@ revoke all on function
   public.list_calf_task_history_322(uuid,uuid),
   public.complete_farm_tasks_322(uuid,jsonb),
   public.end_farm_task_322(uuid,uuid,uuid)
-from public, anon, authenticated;
+from public, anon, authenticated, service_role;
 
 grant execute on function
   public.create_farm_tasks_322(uuid,uuid[],uuid,text,boolean,integer,date,date,text,uuid),

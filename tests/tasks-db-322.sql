@@ -23,15 +23,24 @@ insert into public.calves(id,farm_id,ear_tag,birth_date,sex,status,box_id) value
  ('d0000000-0000-4000-8000-000000000003','b0000000-0000-4000-8000-000000000001','DE3',current_date-7,'female','archived',null),
  ('d0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-000000000002','DE4',current_date-8,'female','active',null);
 
-insert into public.calf_events(id,farm_id,calf_id,kind,details,event_date,due_date,task_status,completed_at,completed_by) values
+insert into public.farm_treatment_templates_320(id,farm_id,name,days,times_per_day,is_halocur)
+values ('f1000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','Testkur',2,2,false);
+insert into public.calf_treatment_plans_320(id,farm_id,calf_id,template_id,start_date,created_by)
+values ('f0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001',
+ 'd0000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001',
+ (now() at time zone 'Europe/Berlin')::date,'a0000000-0000-4000-8000-000000000001');
+
+insert into public.calf_events(id,farm_id,calf_id,kind,details,event_date,due_date,task_status) values
  ('e0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','task','[BEHANDLUNG:f0000000-0000-4000-8000-000000000001] Testkur – Tag 1/2 – Anwendung 1/2',
- (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date,'open',null,null),
+ (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date,'open'),
  ('e0000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','task','[BEHANDLUNG:f0000000-0000-4000-8000-000000000001] Testkur – Tag 1/2 – Anwendung 2/2',
- (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date,'open',null,null),
+ (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date,'open'),
  ('e0000000-0000-4000-8000-000000000003','b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','task','[BEHANDLUNG:f0000000-0000-4000-8000-000000000001] Testkur – Tag 2/2 – Anwendung 1/2',
- (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date + 1,'open',null,null),
+ (now() at time zone 'Europe/Berlin')::date,(now() at time zone 'Europe/Berlin')::date + 1,'open'),
  ('e0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','task','Vor 3.2.2 erledigt',
- (now() at time zone 'Europe/Berlin')::date - 3,(now() at time zone 'Europe/Berlin')::date - 3,'done',now() - interval '3 days','a0000000-0000-4000-8000-000000000001');
+ (now() at time zone 'Europe/Berlin')::date - 3,(now() at time zone 'Europe/Berlin')::date - 3,'done');
+insert into public.calf_task_completions_320(task_id,farm_id,completed_at,completed_by) values
+ ('e0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-000000000001',now() - interval '3 days','a0000000-0000-4000-8000-000000000001');
 
 insert into public.calf_followups(id,farm_id,calf_id,title,due_on) values
  ('e0000000-0000-4000-8000-000000000005','b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','Kontrolle',(now() at time zone 'Europe/Berlin')::date-1);
@@ -118,7 +127,11 @@ begin
   begin
     update public.calf_events set kind='health' where id='e0000000-0000-4000-8000-000000000003';
     raise exception 'Behandlungsaufgabe konnte umetikettiert werden';
-  exception when insufficient_privilege then null; end;
+  exception
+    when insufficient_privilege then null;
+    when raise_exception then
+      if sqlerrm <> 'Geschützte Aufgabe darf nicht geändert werden' then raise; end if;
+  end;
 
   update public.calves set box_id='c0000000-0000-4000-8000-000000000001' where id=calf2;
   tasks := public.list_farm_tasks_322(farm)->'rows';
@@ -171,11 +184,15 @@ begin
   begin
     delete from public.calf_events where id='e0000000-0000-4000-8000-000000000001';
     raise exception 'Behandlungshistorie konnte gelöscht werden';
-  exception when check_violation then null; end;
+  exception
+    when check_violation then null;
+    when raise_exception then
+      if sqlerrm <> 'Bestätigte Aufgaben und Behandlungsaufgaben dürfen nicht gelöscht werden' then raise; end if;
+  end;
   begin
     delete from public.calves where id=calf1;
     raise exception 'Kalb mit Historie konnte physisch gelöscht werden';
-  exception when check_violation or foreign_key_violation then null; end;
+  exception when check_violation or foreign_key_violation or insufficient_privilege then null; end;
 
   -- Wechsel zum nächsten Kalendertag simulieren, indem die parallele,
   -- unbegrenzte Serie am Vortag begonnen wird. Gestern bleibt offen.
@@ -188,9 +205,11 @@ $$;
 
 reset role;
 select pg_temp.verify(
-  (select count(*) from public.calf_treatments where calf_id='d0000000-0000-4000-8000-000000000001')=1,
+  (select count(*) from public.calf_treatment_administrations_320 where calf_id='d0000000-0000-4000-8000-000000000001')=1,
   'Tatsächliche Arzneimitteldokumentation fehlt oder ist doppelt'
 );
+insert into public.calf_treatments(farm_id,calf_id,medicine_name,started_on,ended_on)
+values ('b0000000-0000-4000-8000-000000000001','d0000000-0000-4000-8000-000000000001','Synthetische Behandlung',current_date,current_date);
 do $$
 begin
   begin

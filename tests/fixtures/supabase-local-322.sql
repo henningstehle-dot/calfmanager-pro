@@ -7,10 +7,21 @@ alter table public.calf_events
   add column task_status text default 'open' check (task_status in ('open','progress','done')),
   add column priority text default 'normal' check (priority in ('low','normal','urgent')),
   add column due_date date,
-  add column completed_at timestamptz,
-  add column completed_by uuid;
-create table public.farm_treatment_templates_320 (id uuid primary key);
+  add column assigned_to uuid references auth.users(id) on delete set null;
+create table public.farm_treatment_templates_320 (
+  id uuid primary key, farm_id uuid, name text, days integer, times_per_day integer, is_halocur boolean
+);
 create table public.farm_treatment_settings_320 (farm_id uuid primary key);
+create table public.calf_treatment_plans_320 (
+  id uuid primary key, farm_id uuid, calf_id uuid, template_id uuid, start_date date, created_by uuid
+);
+create table public.calf_task_completions_320 (
+  task_id uuid primary key, farm_id uuid, completed_at timestamptz default now(), completed_by uuid
+);
+create table public.calf_treatment_administrations_320 (
+  farm_id uuid, plan_id uuid, task_id uuid primary key, calf_id uuid,
+  administered_at timestamptz default now(), administered_by uuid
+);
 grant select, insert, update, delete on public.calf_events, public.calves to authenticated;
 
 create function public.complete_farm_task_320(p_farm_id uuid, p_event_id uuid) returns void
@@ -21,10 +32,12 @@ begin
   if not public.is_farm_member(p_farm_id) then raise exception 'Kein Zugriff'; end if;
   select * into strict v_event from public.calf_events where id = p_event_id and farm_id = p_farm_id;
   if v_event.details like '[BEHANDLUNG:%' then
-    insert into public.calf_treatments(farm_id, calf_id, medicine_name, started_on, ended_on)
-    values (p_farm_id, v_event.calf_id, 'Testbehandlung', current_date, current_date);
+    insert into public.calf_treatment_administrations_320(farm_id, plan_id, task_id, calf_id, administered_by)
+    values (p_farm_id, substring(v_event.details from 13 for 36)::uuid, p_event_id, v_event.calf_id, auth.uid());
   end if;
-  update public.calf_events set task_status = 'done', completed_at = clock_timestamp(), completed_by = auth.uid()
+  insert into public.calf_task_completions_320(task_id, farm_id, completed_by)
+  values (p_event_id, p_farm_id, auth.uid());
+  update public.calf_events set task_status = 'done'
   where id = p_event_id and farm_id = p_farm_id;
 end;
 $$;
