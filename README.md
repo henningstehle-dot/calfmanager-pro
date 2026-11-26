@@ -1,10 +1,10 @@
-# CalfManager Pro 3.2.2
+# CalfManager Pro 3.2.3
 
 Mobile Web-App für die tägliche Kälberarbeit im Stall. CalfManager Pro verwendet React, TypeScript, Vite und Supabase. Das Frontend läuft als installierbare PWA auf GitHub Pages. Supabase trennt die Daten der Betriebe über Row Level Security.
 
-## Version 3.2.2
+## Version 3.2.3
 
-Die Release-Anleitung beschreibt Neuerungen, Voraussetzungen, die Reihenfolge für Datenbank- und App-Updates sowie die Wiederherstellung bei Fehlern. [Release- und Installationsanleitung](RELEASE-3.2.2.md)
+Die Release-Anleitung beschreibt die Korrektur der Fütterungsampel, die Prüfungen und das PWA-Update. [Release-Anleitung](RELEASE-3.2.3.md)
 
 ## Lokal starten
 

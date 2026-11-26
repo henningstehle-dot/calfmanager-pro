@@ -90,6 +90,7 @@ function matches(row, params) {
     const operand = value.slice(splitAt + 1);
     if (key === 'select' || key === 'order' || key === 'limit' || key === 'on_conflict' || key === 'offset') continue;
     if (operator === 'eq' && String(row[key]) !== operand) return false;
+    if (operator === 'is' && operand === 'null' && row[key] != null) return false;
     if (operator === 'in' && !operand.slice(1, -1).split(',').includes(String(row[key]))) return false;
     if (operator === 'like' && !String(row[key]).startsWith(operand.replace(/%$/, ''))) return false;
   }
@@ -193,8 +194,9 @@ export async function mockApi(request, response, state) {
   const { pathname, searchParams } = new URL(request.url, 'http://localhost');
   const route = `${request.method} ${pathname}`;
   const requestBody = await bodyOf(request);
-  state.requests.push({ route, body: requestBody });
   const user = request.headers.authorization === 'Bearer local-fixture-employee' ? employee : owner;
+  const farmIds = state.farmIdsByUser?.[user.id] ?? [farm.id];
+  state.requests.push({ route, body: requestBody, query: Object.fromEntries(searchParams), userId: user.id });
   function json(status, body) {
     response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     response.end(JSON.stringify(body));
@@ -219,12 +221,12 @@ export async function mockApi(request, response, state) {
   if (route === 'GET /auth/v1/user') return json(200, user);
   if (pathname.startsWith('/rest/v1/rpc/')) {
     const rpc = pathname.split('/').at(-1);
-    if (requestBody?.p_farm_id) assert.equal(requestBody.p_farm_id, farm.id, `${rpc} must be farm-scoped`);
+    if (requestBody?.p_farm_id && !farmIds.includes(requestBody.p_farm_id)) return json(403, { message: 'Kein Betriebszugriff' });
     switch (rpc) {
       case 'is_platform_admin': return json(200, false);
-      case 'list_farm_members': return json(200, state.members);
+      case 'list_farm_members': return json(200, requestBody.p_farm_id === farm.id ? state.members : state.members.filter(member => member.user_id === owner.id));
       case 'list_farm_invitations': return json(200, []);
-      case 'list_farm_tasks_322': return json(200, { today: state.today, rows: taskRows(state) });
+      case 'list_farm_tasks_322': return json(200, { today: state.today, rows: requestBody.p_farm_id === farm.id ? taskRows(state) : [] });
       case 'list_calf_task_history_322': return json(200, taskRows(state, requestBody.p_calf_id));
       case 'create_farm_tasks_322': {
         if (state.failNextGroup && requestBody.p_calf_ids.length > 1) {
@@ -269,15 +271,24 @@ export async function mockApi(request, response, state) {
   const table = pathname.split('/').at(-1);
   if (!pathname.startsWith('/rest/v1/rpc/') && Object.hasOwn(state.tables, table)) {
     const rows = state.tables[table];
-    const selected = rows.filter(row => matches(row, searchParams));
+    const selected = rows.filter(row =>
+      farmIds.includes(table === 'farms' ? row.id : row.farm_id) && matches(row, searchParams));
     const single = request.headers.accept?.includes('vnd.pgrst.object');
     const representation = request.headers.prefer?.includes('return=representation');
     if (request.method === 'GET') return json(200, single ? selected[0] ?? null : selected);
     if (request.method === 'PATCH') {
+      if (table === 'calves' && Object.hasOwn(requestBody, 'health_status')) {
+        assert.match(searchParams.get('farm_id') ?? '', /^eq\./, 'health writes require a farm filter');
+        assert.equal(searchParams.get('status'), 'eq.active');
+      }
       for (const row of selected) Object.assign(row, requestBody);
       return json(200, representation ? (single ? selected[0] : selected) : null);
     }
     if (request.method === 'POST') {
+      if (!farmIds.includes(requestBody.farm_id)) return json(403, { message: 'Kein Betriebszugriff' });
+      if (table === 'calf_feeding_rounds') {
+        assert.ok(state.tables.calves.some(calf => calf.id === requestBody.calf_id && calf.farm_id === requestBody.farm_id));
+      }
       const conflictKeys = searchParams.get('on_conflict')?.split(',');
       const existing = conflictKeys && rows.find(row => conflictKeys.every(key => row[key] === requestBody[key]));
       const defaults = table === 'farm_task_templates_322' ? { active: true } : {};

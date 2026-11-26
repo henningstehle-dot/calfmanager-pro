@@ -85,8 +85,20 @@ begin
   insert into public.calf_feeding_rounds(farm_id,calf_id,feeding_date,round,status)
     values(farm,calf,current_day,'morning','green')
     on conflict(farm_id,calf_id,feeding_date,round) do update set status=excluded.status;
-  update public.calf_feeding_rounds set status='yellow' where farm_id=farm and calf_id=calf;
-  perform pg_temp.expect((select status from public.calf_feeding_rounds where calf_id=calf)='yellow','Fütterung aus 3.2.1 defekt');
+  update public.calf_feeding_rounds set status='yellow'
+    where farm_id=farm and calf_id=calf and feeding_date=current_day and round='morning';
+  perform pg_temp.expect((select status from public.calf_feeding_rounds
+    where farm_id=farm and calf_id=calf and feeding_date=current_day and round='morning')='yellow',
+    'Fütterung aus 3.2.1 defekt');
+  perform pg_temp.expect(exists(select 1 from public.calf_feeding_rounds
+    where id='32100000-0000-4000-8000-000000000061' and farm_id=farm and calf_id=calf
+      and feeding_date='2025-01-15' and round='evening' and status='yellow'
+      and updated_by='32100000-0000-4000-8000-000000000001' and updated_at='2025-01-15 18:30:00+01'),
+    'Vor der Migration dokumentierte Fütterungsrunde wurde verändert');
+  perform pg_temp.expect(exists(select 1 from public.calf_events
+    where id='32100000-0000-4000-8000-000000000042' and farm_id=farm and calf_id=calf
+      and kind='feeding' and event_date='2025-01-15' and details='Fütterung vor der Migration' and milk_liters=3.5),
+    'Vor der Migration dokumentierter Fütterungseintrag wurde verändert');
 
   insert into public.calf_treatments(farm_id,calf_id,medicine_name,started_on,ended_on,withdrawal_milk_days)
     values(farm,calf,'Synthetisches Präparat',current_day,current_day,2) returning id into treatment;

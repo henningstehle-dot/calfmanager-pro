@@ -49,6 +49,7 @@ sql < supabase/migration_3_2_2.sql
 if [[ -n "$schema_path" ]]; then sql < tests/actual-321-compatibility.sql; fi
 sql < tests/mat-db-322.sql
 sql < tests/tasks-db-322.sql
+sql < tests/feeding-db-323.sql
 
 # Zwei echte Datenbanksitzungen bestätigen gleichzeitig dieselbe Durchführung.
 sql -qAt -v actor=a0000000-0000-4000-8000-000000000002 -v pause=2 < tests/fixtures/task-concurrent-322.sql > "$output_dir/employee" &
@@ -72,4 +73,4 @@ begin
 end;
 $$;
 SQL
-echo "$image: Migration, MAT, Aufgaben und konkurrierende Bestätigung erfolgreich."
+echo "$image: Migration, MAT, Aufgaben, Fütterungsampel und konkurrierende Bestätigung erfolgreich."
