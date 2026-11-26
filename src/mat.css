@@ -1,0 +1,115 @@
+.mat-touch-target,
+.mat-modes button {
+  min-height: 44px;
+}
+
+.mat-dialog {
+  width: min(calc(100% - 24px), 550px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: clamp(14px, 4vw, 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #dbe5dc;
+  border-radius: 16px;
+  color: #20372e;
+  background: white;
+}
+
+.mat-dialog::backdrop {
+  background: rgb(20 40 30 / 55%);
+}
+
+.mat-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mat-dialog-header h2 {
+  margin: 0;
+}
+
+.mat-dialog-header button {
+  min-width: 44px;
+  padding: 8px;
+}
+
+.mat-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mat-modes button {
+  padding: 8px;
+  white-space: normal;
+}
+
+.mat-dialog input,
+.mat-settings input,
+.mat-settings select {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.mat-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mat-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.mat-results div {
+  padding: 10px 8px;
+  border: 1px solid #e2ece0;
+  border-radius: 10px;
+  background: #f5f8f3;
+  overflow-wrap: anywhere;
+}
+
+.mat-results dt {
+  font-size: 12px;
+}
+
+.mat-results dd {
+  margin: 6px 0 0;
+  font-weight: 750;
+}
+
+.mat-recipe-note {
+  margin-bottom: 0;
+}
+
+.mat-settings-form {
+  max-width: 680px;
+  margin-top: 16px;
+}
+
+.mat-settings-form fieldset {
+  min-width: 0;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #dbe5dc;
+  border-radius: 10px;
+}
+
+.mat-settings-form legend {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+@media (max-width: 410px) {
+  .mat-settings .mat-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
