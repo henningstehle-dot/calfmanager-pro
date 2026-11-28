@@ -239,3 +239,10 @@
 .farmer-content .task-count-tabs342 button{display:flex;flex-direction:column;align-items:center;gap:3px}
 .farmer-content .task-count-tabs342 button strong{font-size:17px}
 .farmer-content .task-count-tabs342 button:nth-child(3):not([aria-pressed=true]) strong{color:#a12727}
+/* 3.4.3 */
+@media(min-width:761px){.farmer-content .header-logo{display:none}}
+.farmer-content .topbar .test-pill{display:inline-flex;color:white;background:#ffffff18;white-space:nowrap;font-size:10px;padding:5px 7px}
+@media(max-width:760px){.farmer-content .topbar{flex-wrap:wrap;gap:6px}.farmer-content .topbar .test-pill{font-size:9px}.farmer-content .topbar-title{font-size:14px}}
+.farmer-content .box-card.box-editing343,.farmer-content .box-edit-form343{background:#fff0ee;border:2px solid #c7443b;border-radius:12px;padding:12px}
+.farmer-content .box-new-form343{margin-top:24px;padding-top:18px;border-top:2px solid #b9cbbd}
+.box-controls343{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.box-drag343{touch-action:none;user-select:none;cursor:grab}.box-drag343:active{cursor:grabbing;background:#dcebd8}.box-controls343 button{font-size:12px}

@@ -402,7 +402,7 @@ async function verifyFeedingStatus(browser, mobile, app) {
 
   await withPage(browser, mobile, async page => {
     await login(page, app, owner);
-    await page.getByText('VERSION 3.4.2', { exact: true }).waitFor({state:'attached'});
+    await page.getByText('VERSION 3.4.3', { exact: true }).waitFor({state:'attached'});
     await openFeeding(page);
     await picker(page, calf).selectOption('yellow');
     await expectStatus(page, calf, 'yellow');
@@ -574,7 +574,7 @@ async function feedingAndMat(page) {
 async function offlineWeight(page, context) {
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cacheNames = await page.evaluate(() => caches.keys());
-  assert.ok(cacheNames.includes('calfmanager-shell-v3-4-2'));
+  assert.ok(cacheNames.includes('calfmanager-shell-v3-4-3'));
   assert.ok(!cacheNames.includes('calfmanager-shell-v3-2-1'));
   await dashboard(page);
   await context.setOffline(true);
