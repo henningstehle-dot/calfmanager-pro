@@ -403,8 +403,8 @@ export function TaskTemplateSettings({ tasks }: { tasks: FarmTasks }) {
 }
 
 const categories: { key: TaskCategory; label: string; empty: string }[] = [
-  { key: 'today', label: 'Heute', empty: 'Keine offenen Aufgaben für heute.' },
   { key: 'overdue', label: 'Überfällig', empty: 'Keine überfälligen Aufgaben.' },
+  { key: 'today', label: 'Heute', empty: 'Keine offenen Aufgaben für heute.' },
   { key: 'planned', label: 'Geplant', empty: 'Keine geplanten Aufgaben.' },
   { key: 'completed', label: 'Heute erledigt', empty: 'Heute sind noch keine Erledigungen erfasst.' },
 ];
@@ -557,18 +557,20 @@ export function TaskOverview({ tasks, boxes, onOpenCalf, fallbackRows }: {
   onOpenCalf: (id: string) => void;
   fallbackRows?: FarmTask[];
 }) {
-  const [view,setView]=useState<"today"|"open"|"completed"|"planned"|"recurring">("today");
+  const [view,setView]=useState<"today"|"open"|"overdue"|"completed"|"planned"|"recurring">("today");
   const rows = tasks.available ? tasks.rows : fallbackRows ?? [];
   const todayRows = rows.filter(row => row.due_date === tasks.today);
   const done = todayRows.filter(row => row.category === 'completed' && (row.source!=='farm'||tasks.farmDoneToday===undefined)).length+(tasks.farmDoneToday??0);
   const total = done+todayRows.filter(row=>row.category==='today'&&(row.source!=='farm'||tasks.farmCounts===undefined)).length+(tasks.farmCounts?.today??0);
+  const countCategory = (category: TaskCategory) => rows.filter(r=>r.category===category&&(r.source!=='farm'||tasks.farmCounts?.[category]===undefined)).length+(tasks.farmCounts?.[category]??0);
+  const counts = {today:countCategory("today"),open:countCategory("today")+countCategory("overdue")+countCategory("planned"),overdue:countCategory("overdue"),completed:countCategory("completed"),planned:countCategory("planned"),recurring:rows.filter(r=>r.recurring===true&&r.category!=="completed").length};
   const percent = total ? Math.round(done / total * 100) : 0;
   return <section className="panel task-panel" aria-label="Aufgabenübersicht">
     {(tasks.available || !!fallbackRows?.length) && <div className="task-progress-card">
       <div className="task-progress-ring" style={{background: `conic-gradient(#31852f ${percent}%, #e0e5df 0)`}}><div><strong>{done} / {total}</strong><small>erledigt</small></div></div>
       <div><h3>Heutige Aufgaben</h3><p>{done} erledigt · {total - done} offen</p><small>{localDate(tasks.today)}</small></div>
     </div>}
-    <div className="work-tabs" role="group" aria-label="Aufgabenansicht">{([ ["today","Heute"],["open","Offen"],["completed","Erledigt"],["planned","Geplant"],["recurring","Wiederkehrend"] ] as const).map(([v,l])=><button key={v} aria-pressed={view===v} onClick={()=>setView(v)}>{l}</button>)}</div>{view==="completed"&&<FarmWorkHistory key={tasks.scope} tasks={tasks}/>} 
+    <div className="work-tabs task-count-tabs342" role="group" aria-label="Aufgabenansicht">{([ ["today","Heute"],["open","Offen"],["overdue","Überfällig"],["completed","Erledigt"],["planned","Geplant"],["recurring","Wiederkehrend"] ] as const).map(([v,l])=><button key={v} aria-pressed={view===v} onClick={()=>setView(v)}><span>{l}</span><strong>{tasks.available||fallbackRows?.length?counts[v]:"–"}{v==="recurring"&&tasks.farmCounts?"*":""}</strong></button>)}</div>{view==="recurring"&&tasks.farmCounts&&<small>* Anzahl der geladenen wiederkehrenden Aufgaben.</small>}{view==="completed"&&<FarmWorkHistory key={tasks.scope} tasks={tasks}/>} 
     {!tasks.online && <p className="task-help" role="status">
       {tasks.available ? `Offline · Aufgabenstand vom ${localDate(tasks.today)}. Zum Ändern bitte verbinden.`
         : 'Offline · Kein gespeicherter Aufgabenstand verfügbar.'}

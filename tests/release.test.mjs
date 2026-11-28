@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('Version 3.4.1 is consistent in the app and npm metadata', () => {
-  assert.match(read('../src/main.tsx'), /VERSION 3\.4\.1/);
-  assert.equal(JSON.parse(read('../package.json')).version, '3.4.1');
+test('Version 3.4.2 is consistent in the app and npm metadata', () => {
+  assert.match(read('../src/main.tsx'), /VERSION 3\.4\.2/);
+  assert.equal(JSON.parse(read('../package.json')).version, '3.4.2');
   const lock = JSON.parse(read('../package-lock.json'));
-  assert.equal(lock.version, '3.4.1');
-  assert.equal(lock.packages[''].version, '3.4.1');
+  assert.equal(lock.version, '3.4.2');
+  assert.equal(lock.packages[''].version, '3.4.2');
 });
 
 test('offline records are scoped to both user and farm', () => {
@@ -31,7 +31,7 @@ test('service worker only intercepts same-origin GET requests', () => {
 });
 
 test('service worker cache is versioned for this release', () => {
-  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-4-1/);
+  assert.match(read('../public/sw.js'), /calfmanager-shell-v3-4-2/);
 });
 
 test('manifest exists and provides install metadata', () => {

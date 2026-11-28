@@ -221,3 +221,21 @@
 .farmer-content .dashboard-treatment small{display:block;color:#52675a;font-size:12px}
 .farmer-content .dashboard-treatment time,.farmer-content .dashboard-reminders time{flex:none;white-space:nowrap;font-size:12px;font-weight:650}
 .farmer-content .desktop-extra341{grid-column:1/-1;margin:0}.desktop-extra341 summary{cursor:pointer;font-weight:650}.desktop-extra341 .desktop-work8{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
+
+/* 3.4.2 */
+.farmer-content .dashboard-toolbar .farmer-select-label{background:transparent;padding:0;color:white}
+.farmer-content .dashboard-toolbar .farmer-select-label select{background:#063b29;color:white;border:1px solid #ffffff55;box-shadow:none}
+.farmer-content .dashboard-toolbar .farmer-select-label select option{background:#063b29;color:white}
+.farmer-content .dashboard-metric{display:grid;grid-template-rows:24px minmax(36px,auto) minmax(18px,auto) 16px;justify-items:center;align-content:center;justify-content:stretch;align-items:center}
+.farmer-content .dashboard-metric small{line-height:16px}
+.farmer-content .calf-work-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+.farmer-content .calf-work-tabs button{font-size:clamp(11px,2.7vw,14px);padding:7px 4px;line-height:1.2;display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+.farmer-content .calf-work-tabs .calf-add-tab{background:#205c3b;color:white;border-color:#205c3b}
+.farmer-content .dashboard-reminders h2{background:#e4f2e5;color:#123e2a}
+.farmer-content .dashboard-reminders .reminder-row342{display:grid;grid-template-columns:minmax(0,1fr) auto 28px;gap:8px;align-items:center;border-bottom:1px solid #e1e9e1;padding:7px 3px}
+.farmer-content .dashboard-reminders .reminder-row342 button{display:inline-flex;min-height:32px;width:auto;padding:2px 0;border:0;background:transparent;overflow-wrap:anywhere}
+.farmer-content .dashboard-reminders .reminder-tag342{text-decoration:underline;color:#205c3b;font-weight:700}
+.farmer-content .dashboard-reminders .reminder-open342{justify-content:center;width:28px;min-height:44px}
+.farmer-content .task-count-tabs342 button{display:flex;flex-direction:column;align-items:center;gap:3px}
+.farmer-content .task-count-tabs342 button strong{font-size:17px}
+.farmer-content .task-count-tabs342 button:nth-child(3):not([aria-pressed=true]) strong{color:#a12727}
