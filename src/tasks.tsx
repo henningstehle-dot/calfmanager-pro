@@ -62,10 +62,10 @@ function TaskTiming({ edit, setEdit, dates }: {
     ? addTaskDays(dates.start, Number(edit.days) - 1)
     : '';
   return <>
-    <label>Wiederholung
+    <label>Aufgabenart
       <select value={edit.recurring ? 'repeat' : 'once'} onChange={event => setEdit({ ...edit, recurring: event.target.value === 'repeat' })}>
-        <option value="once">Einmalig</option>
-        <option value="repeat">Täglich wiederkehrend</option>
+        <option value="once">Einmalige Aufgabe</option>
+        <option value="repeat">Serienaufgabe (täglich)</option>
       </select>
     </label>
     {edit.recurring && <>
@@ -161,8 +161,9 @@ function GroupCalfPicker({ calves, boxes, selected, setSelected }: {
   </fieldset>;
 }
 
-export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClose, onCreated }: {
+export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClose, onCreated, initialFarmWide = false }: {
   tasks: FarmTasks;
+  initialFarmWide?: boolean;
   calf?: TaskCalf;
   calves?: TaskCalf[];
   boxes?: TaskBox[];
@@ -173,6 +174,7 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
   const labelId = useId();
   const submitting = useRef(false);
   const request = useRef<{ signature: string; id: string }>();
+  const [farmWide,setFarmWide] = useState(initialFarmWide);
   const [selected, setSelected] = useState(() => new Set<string>());
   const [templateId, setTemplateId] = useState('');
   const [edit, setEdit] = useState(blankTask);
@@ -200,7 +202,7 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
     event.preventDefault();
     if (submitting.current) return;
     const calfIds = calf ? [calf.id] : [...eligibleSelection].sort();
-    if (!calfIds.length) {
+    if (!farmWide && !calfIds.length) {
       setNotice('Bitte mindestens ein Kalb auswählen.');
       return;
     }
@@ -215,7 +217,7 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
       return;
     }
     const assignment = {
-      calfIds, templateId: templateId || null, name: edit.name.trim(), recurring: edit.recurring,
+      farmWide, calfIds: farmWide ? [] : calfIds, templateId: templateId || null, name: edit.name.trim(), recurring: edit.recurring,
       timesPerDay: edit.recurring ? Number(edit.times) : 1, startDate: start, endDate,
       notes: edit.notes.trim() || null,
     };
@@ -238,12 +240,13 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
   return <dialog ref={dialog} className="modal task-dialog" aria-labelledby={labelId}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <div className="modal-head">
-      <div><h2 id={labelId}>{calf ? 'Aufgabe anlegen' : 'Gruppenaufgabe anlegen'}</h2>
+      <div><h2 id={labelId}>{calf ? 'Aufgabe anlegen' : 'Aufgabe anlegen'}</h2>
         {calf && <p className="task-help">Kalb {calf.ear_tag}</p>}</div>
       <button className="task-icon-button" type="button" aria-label="Aufgabe schließen" disabled={busy} onClick={onClose}><X size={22}/></button>
     </div>
     <form className="task-form" onSubmit={event => void submit(event)}>
-      {!calf && <GroupCalfPicker calves={calves} boxes={boxes} selected={eligibleSelection} setSelected={setSelected}/>}
+      {!calf && <label>Zuordnung<select value={farmWide ? "farm" : "group"} onChange={e=>setFarmWide(e.target.value==="farm")}><option value="group">Kälber / Gruppe</option><option value="farm">Betrieb (ohne Tierbezug)</option></select></label>}
+      {!calf && !farmWide && <GroupCalfPicker calves={calves} boxes={boxes} selected={eligibleSelection} setSelected={setSelected}/>}
       <label>Aufgabenvorlage
         <select value={templateId} onChange={event => chooseTemplate(event.target.value)}>
           <option value="">Individuelle Aufgabe</option>
@@ -267,7 +270,7 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
       {notice && <p className="task-feedback error" role="alert">{notice}</p>}
       <div className="task-form-actions">
         <button className="outline" type="button" disabled={busy} onClick={onClose}>Abbrechen</button>
-        <button className="primary" type="submit" disabled={busy || !tasks.online || (!calf && !eligibleSelection.size)}>
+        <button className="primary" type="submit" disabled={busy || !tasks.online || (!calf && !farmWide && !eligibleSelection.size)}>
           {busy ? 'Wird angelegt …' : 'Anlegen'}
         </button>
       </div>
@@ -275,7 +278,7 @@ export function TaskAssignmentForm({ tasks, calf, calves = [], boxes = [], onClo
   </dialog>;
 }
 
-export function GroupTaskButton({ tasks, calves, boxes }: { tasks: FarmTasks; calves: TaskCalf[]; boxes: TaskBox[] }) {
+export function GroupTaskButton({ tasks, calves, boxes, farmWide = false }: { farmWide?:boolean; tasks: FarmTasks; calves: TaskCalf[]; boxes: TaskBox[] }) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState('');
   return <>
@@ -283,9 +286,9 @@ export function GroupTaskButton({ tasks, calves, boxes }: { tasks: FarmTasks; ca
       setNotice('');
       setOpen(true);
       void tasks.refreshTemplates();
-    }}><Plus size={17} aria-hidden="true"/> Gruppenaufgabe</button>
-    {open && <TaskAssignmentForm tasks={tasks} calves={calves} boxes={boxes} onClose={() => setOpen(false)}
-      onCreated={count => { setOpen(false); setNotice(`Gruppenaufgabe für ${pluralCalves(count)} angelegt.`); }}/>}
+    }}><Plus size={17} aria-hidden="true"/> {farmWide?"Betriebsaufgabe":"Gruppenaufgabe"}</button>
+    {open && <TaskAssignmentForm initialFarmWide={farmWide} tasks={tasks} calves={calves} boxes={boxes} onClose={() => setOpen(false)}
+      onCreated={count => { setOpen(false); setNotice(`Aufgabe angelegt (${count} Zuordnungen).`); }}/>}
     {notice && <span className="task-action-status" role="status">{notice}</span>}
   </>;
 }
@@ -427,7 +430,10 @@ function completedLabel(row: FarmTask) {
   return [timestamp, row.completed_by_name].filter(Boolean).join(' · ');
 }
 
-function TaskRows({ rows, tasks, boxes, onOpenCalf }: {
+function TaskRows({ rows, tasks, boxes, onOpenCalf, visibleCategories, expanded, recurringOnly }: {
+  visibleCategories?: TaskCategory[];
+  expanded?: boolean;
+  recurringOnly?: boolean;
   rows: FarmTask[];
   tasks: FarmTasks;
   boxes: TaskBox[];
@@ -465,7 +471,7 @@ function TaskRows({ rows, tasks, boxes, onOpenCalf }: {
   }
 
   async function end(row: FarmTask) {
-    if (locked.current || !window.confirm(`Aufgabe „${row.name}“ für Kalb ${row.ear_tag} beenden? Bereits erfasste Durchführungen bleiben in der Historie.`)) return;
+    if (locked.current || !window.confirm(`Aufgabe „${row.name}“ ${row.source === "farm" ? "für den Betrieb" : `für Kalb ${row.ear_tag}`} beenden? Bereits erfasste Durchführungen bleiben in der Historie.`)) return;
     locked.current = true;
     setBusy(true);
     setFeedback(undefined);
@@ -483,16 +489,18 @@ function TaskRows({ rows, tasks, boxes, onOpenCalf }: {
 
   return <>
     {feedback && <p className={`task-feedback${feedback.failed ? ' error' : ''}`} role={feedback.failed ? 'alert' : 'status'}>{feedback.text}</p>}
-    {categories.map(category => {
-      const grouped = tasksByBox(rows.filter(row => row.category === category.key), boxes);
+    {categories.filter(c=>!visibleCategories||visibleCategories.includes(c.key)).map(category => {
+      const grouped = tasksByBox(rows.filter(row => row.category === category.key && (!recurringOnly || row.recurring === true)), boxes);
       const count = grouped.reduce((total, box) => total + box.rows.length, 0);
+      const loadedFarm=rows.filter(r=>r.source==='farm'&&r.category===category.key).length;
+      const remaining=onOpenCalf?Math.max(0,(tasks.farmCounts?.[category.key]??loadedFarm)-loadedFarm):0;
       const due = category.key === 'today' || category.key === 'overdue';
-      return <details key={category.key} className={`task-category ${category.key}`} open={due}>
+      return <details key={category.key} className={`task-category ${category.key}`} open={expanded||due}>
         <summary className="task-category-heading">
-          <span>{category.label}</span><span className="count">{count}</span><ChevronDown size={19} aria-hidden="true"/>
+          <span>{category.label}</span><span className="count">{recurringOnly ? count : count+remaining}</span><ChevronDown size={19} aria-hidden="true"/>
         </summary>
-        {!count && <p className="task-empty">{category.empty}</p>}
-        {grouped.map(box => <details className="task-box" key={box.id} open={due}>
+        {!count && !remaining && <p className="task-empty">{recurringOnly ? "Keine wiederkehrenden Aufgaben in dieser Kategorie." : category.empty}</p>}
+        {grouped.map(box => <details className="task-box" key={box.id} open={expanded||due}>
           <summary className="task-box-heading">
             <strong>{box.name}</strong><small>{box.rows.length} {box.rows.length === 1 ? 'Aufgabe' : 'Aufgaben'}</small>
             <ChevronDown size={18} aria-hidden="true"/>
@@ -508,7 +516,7 @@ function TaskRows({ rows, tasks, boxes, onOpenCalf }: {
             {group.rows.map(row => <div className="task-work-row" key={taskKey(row)}>
               <div className="task-info">
                 <strong>{row.name}{row.priority === 'urgent' && <span className="task-urgent">Dringend</span>}</strong>
-                {onOpenCalf
+                {onOpenCalf && row.source !== "farm"
                   ? <button type="button" className="task-calf-link" onClick={() => onOpenCalf(row.calf_id)}>{row.ear_tag}</button>
                   : <span>{row.ear_tag}</span>}
                 {taskSummary(row) && <small>{taskSummary(row)}</small>}
@@ -528,9 +536,19 @@ function TaskRows({ rows, tasks, boxes, onOpenCalf }: {
             </div>)}
           </div>)}
         </details>)}
+        {remaining>0&&<button className="outline" disabled={busy||!tasks.online||tasks.loading} onClick={async()=>{if(locked.current)return;locked.current=true;setBusy(true);try{await tasks.loadMore(category.key);}catch(e){setFeedback({text:errorMessage(e),failed:true});}finally{locked.current=false;setBusy(false);}}}>Weitere Betriebsaufgaben laden ({remaining})</button>}
       </details>;
     })}
   </>;
+}
+
+function FarmWorkHistory({tasks}:{tasks:FarmTasks}) {
+ const [rows,setRows]=useState<Awaited<ReturnType<FarmTasks['history']>>>([]);
+ const [notice,setNotice]=useState('');
+ const [busy,setBusy]=useState(false);
+ const [more,setMore]=useState(false);
+ async function load(append=false){setBusy(true);setNotice('');try{const page=await tasks.history(append?rows[rows.length-1]:undefined);setRows(old=>append?[...old,...page]:page);setMore(page.length===200);}catch(e){setNotice(errorMessage(e));}finally{setBusy(false);}}
+ return <details className="task-category"><summary>Betriebshistorie</summary><button className="outline" disabled={!tasks.online||busy} onClick={()=>void load()}>Letzte 200 Durchführungen laden</button>{notice&&<p role="alert">{notice}</p>}{rows.map(r=><p key={`${r.order_id}:${r.due_date}:${r.occurrence}`}><strong>{r.name}</strong> · {localDate(r.due_date)} · Durchführung {r.occurrence} · {completionFormat.format(new Date(r.completed_at))} · {r.completed_by_name||'Ehemaliger oder unbekannter Nutzer'}</p>)}{more&&<button className="outline" disabled={!tasks.online||busy} onClick={()=>void load(true)}>Weitere Einträge laden</button>}</details>;
 }
 
 export function TaskOverview({ tasks, boxes, onOpenCalf, fallbackRows }: {
@@ -539,15 +557,26 @@ export function TaskOverview({ tasks, boxes, onOpenCalf, fallbackRows }: {
   onOpenCalf: (id: string) => void;
   fallbackRows?: FarmTask[];
 }) {
+  const [view,setView]=useState<"today"|"open"|"completed"|"planned"|"recurring">("today");
+  const rows = tasks.available ? tasks.rows : fallbackRows ?? [];
+  const todayRows = rows.filter(row => row.due_date === tasks.today);
+  const done = todayRows.filter(row => row.category === 'completed' && (row.source!=='farm'||tasks.farmDoneToday===undefined)).length+(tasks.farmDoneToday??0);
+  const total = done+todayRows.filter(row=>row.category==='today'&&(row.source!=='farm'||tasks.farmCounts===undefined)).length+(tasks.farmCounts?.today??0);
+  const percent = total ? Math.round(done / total * 100) : 0;
   return <section className="panel task-panel" aria-label="Aufgabenübersicht">
+    {(tasks.available || !!fallbackRows?.length) && <div className="task-progress-card">
+      <div className="task-progress-ring" style={{background: `conic-gradient(#31852f ${percent}%, #e0e5df 0)`}}><div><strong>{done} / {total}</strong><small>erledigt</small></div></div>
+      <div><h3>Heutige Aufgaben</h3><p>{done} erledigt · {total - done} offen</p><small>{localDate(tasks.today)}</small></div>
+    </div>}
+    <div className="work-tabs" role="group" aria-label="Aufgabenansicht">{([ ["today","Heute"],["open","Offen"],["completed","Erledigt"],["planned","Geplant"],["recurring","Wiederkehrend"] ] as const).map(([v,l])=><button key={v} aria-pressed={view===v} onClick={()=>setView(v)}>{l}</button>)}</div>{view==="completed"&&<FarmWorkHistory key={tasks.scope} tasks={tasks}/>} 
     {!tasks.online && <p className="task-help" role="status">
       {tasks.available ? `Offline · Aufgabenstand vom ${localDate(tasks.today)}. Zum Ändern bitte verbinden.`
-        : 'Offline · Aufgaben aus dem zuletzt gespeicherten Betriebsstand.'}
+        : 'Offline · Kein gespeicherter Aufgabenstand verfügbar.'}
     </p>}
     {tasks.error && <p className="task-feedback error" role="alert">Aufgaben konnten nicht geladen werden. {tasks.error}</p>}
     {tasks.loading && !tasks.available && !fallbackRows?.length
       ? <p className="task-help" role="status">Aufgaben werden geladen …</p>
-      : <TaskRows rows={tasks.available ? tasks.rows : fallbackRows ?? []} tasks={tasks} boxes={boxes} onOpenCalf={onOpenCalf}/>}
+      : !tasks.available && !fallbackRows?.length ? <p role="status">Aufgaben derzeit nicht verfügbar.</p> : <TaskRows expanded recurringOnly={view==="recurring"} visibleCategories={view==="open"||view==="recurring"?["today","overdue","planned"]:[view]} rows={tasks.available ? tasks.rows : fallbackRows ?? []} tasks={tasks} boxes={boxes} onOpenCalf={onOpenCalf}/>}
   </section>;
 }
 

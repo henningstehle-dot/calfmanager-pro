@@ -25,5 +25,9 @@ function precacheAppAssets(): Plugin {
 const repository = process.env.GITHUB_REPOSITORY?.split('/')[1];
 export default defineConfig({
   plugins: [react(), precacheAppAssets()],
+  build: { rollupOptions: { output: { manualChunks(id) {
+    if (id.includes('/node_modules/@supabase/')) return 'supabase';
+    if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-runtime';
+  } } } },
   base: repository ? `/${repository}/` : '/',
 });

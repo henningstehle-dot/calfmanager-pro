@@ -21,7 +21,7 @@ const switchingDay = dateOffset(initialDate, 1);
 const futureDay = dateOffset(initialDate, 28);
 const mimeTypes = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json',
 };
 
 const output = await mkdtemp(join(tmpdir(), 'calfmanager-browser-'));
@@ -169,7 +169,7 @@ async function login(page, app, user, invalidAttempt = false) {
 }
 
 async function dashboard(page) {
-  await page.getByRole('button', { name: 'Übersicht', exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: /^(Übersicht|Dashboard)$/ }).filter({ visible: true }).first().click();
   await page.getByRole('region', { name: 'Hauptarbeitsbereiche' }).waitFor();
 }
 
@@ -211,7 +211,7 @@ async function verifyMobile(page, context, app) {
   await navigate(page, 'Kälber');
   const earTag = page.getByRole('button', { name: calf.ear_tag, exact: true });
   await earTag.waitFor();
-  const search = page.getByPlaceholder('Ohrmarke, Name oder Rasse suchen');
+  const search = page.getByPlaceholder('Kälber suchen');
   await search.fill('keine passende Ohrmarke');
   await earTag.waitFor({ state: 'hidden' });
   await search.fill(calf.ear_tag);
@@ -234,9 +234,11 @@ async function verifyMobile(page, context, app) {
   await assertDueCount(page, 3);
 
   await navigate(page, 'Aufgaben');
+  await page.getByRole('button',{name:'Erledigt',exact:true}).click();
   const completed = taskSection(page, 'Heute erledigt');
   await completed.locator('.task-category-heading').waitFor();
-  assert.equal(await completed.getAttribute('open'), null);
+  assert.notEqual(await completed.getAttribute('open'), null);
+  await page.getByRole('button',{name:'Offen',exact:true}).click();
   await taskSection(page, 'Überfällig').getByText(/Ältere Bestandsaufgabe/).first().waitFor();
   assert.equal(await page.getByText('Archivierte Aufgabe', { exact: true }).count(), 0);
   await taskSection(page, 'Heute').locator('.task-category-heading').waitFor();
@@ -244,8 +246,7 @@ async function verifyMobile(page, context, app) {
   await completeCalfTask(page, recurringTemplate.name, calf);
   await completionButton(page, recurringTemplate.name, calf).nth(1).waitFor({ state: 'detached' });
   assert.equal(await completionButton(page, recurringTemplate.name, calf).count(), 1);
-  await completed.locator('.task-category-heading').click();
-  await completed.locator('.task-box-heading').first().click();
+  await page.getByRole('button',{name:'Erledigt',exact:true}).click();
   await completed.getByText(/Hanna Test/).waitFor();
   assert.equal(state.completions.size, 1);
   await dashboard(page);
@@ -262,13 +263,14 @@ async function verifyMobile(page, context, app) {
   const bulk = state.requests.filter(request => request.route.endsWith('/complete_farm_tasks_322')).at(-1).body;
   assert.equal(bulk.p_tasks.length, 2);
   await groupAssignment(page, 'Kontrolle in vier Wochen', futureDay);
+  await page.getByRole('button',{name:'Geplant',exact:true}).click();
   const planned = taskSection(page, 'Geplant');
-  await planned.locator('.task-category-heading').click();
-  await planned.locator('.task-box-heading').first().click();
   await planned.getByText('Kontrolle in vier Wochen', { exact: true }).first().waitFor();
 
   await dashboard(page);
   await navigate(page, 'Stallübersicht');
+  await page.getByRole('button', {name:'Boxen und Gruppen', exact:true}).click();
+  page.once('dialog', dialog => dialog.accept());
   await page.getByLabel(`Box für ${unboxedCalf.ear_tag}`, { exact: true }).selectOption(boxes[1].id);
   await page.getByText(/Boxenzuordnung gespeichert\./).waitFor();
   await dashboard(page);
@@ -285,6 +287,7 @@ async function verifyMobile(page, context, app) {
   await taskSection(page, 'Heute').getByText(recurringTemplate.name, { exact: true }).first().waitFor();
   await taskSection(page, 'Heute').getByText(/Tag 2\/3/).first().waitFor();
   assert.equal(await taskSection(page, 'Heute').getByRole('button', { name: new RegExp(`${recurringTemplate.name}.*${calf.ear_tag}.*erledigen`, 'i') }).count(), 2);
+  await page.getByRole('button',{name:'Offen',exact:true}).click();
   await taskSection(page, 'Überfällig').getByText('Gruppenmessung', { exact: true }).waitFor();
   page.once('dialog', dialog => dialog.accept());
   await taskSection(page, 'Heute').getByRole('button', { name: /Aufgabe beenden/ }).first().click();
@@ -306,7 +309,7 @@ async function verifyMobile(page, context, app) {
 
 async function groupAssignment(page, title, start, failFirst = false) {
   await page.getByRole('button', { name: 'Gruppenaufgabe', exact: true }).click();
-  const form = page.getByRole('dialog', { name: /Gruppenaufgabe/ });
+  const form = page.getByRole('dialog', { name: /Aufgabe anlegen/ });
   const boxToggle = form.getByRole('button', { name: /Box Nord/ });
   const boxCheck = form.getByRole('checkbox', { name: /Box Nord/ });
   await boxCheck.check();
@@ -399,7 +402,7 @@ async function verifyFeedingStatus(browser, mobile, app) {
 
   await withPage(browser, mobile, async page => {
     await login(page, app, owner);
-    await page.getByText('VERSION 3.2.4', { exact: true }).waitFor();
+    await page.getByText('VERSION 3.4.0', { exact: true }).waitFor({state:'attached'});
     await openFeeding(page);
     await picker(page, calf).selectOption('yellow');
     await expectStatus(page, calf, 'yellow');
@@ -428,10 +431,10 @@ async function verifyFeedingStatus(browser, mobile, app) {
 
     await dashboard(page);
     await navigate(page, 'Kälber');
-    await page.getByRole('button', { name: /1 Aufmerksamkeit/ }).click();
-    await page.getByRole('region', { name: 'Gefilterte Kälber' }).getByRole('button', { name: calf.ear_tag }).waitFor();
-    await page.getByRole('button', { name: /1 in Behandlung \/ krank/ }).click();
-    await page.getByRole('region', { name: 'Gefilterte Kälber' }).getByRole('button', { name: secondCalf.ear_tag }).click();
+    await page.getByRole('button', { name: /Auffällig \(1\)/ }).click();
+    await page.locator('.calf-desktop-table:visible, .calf-mobile-list:visible').getByRole('button', { name: calf.ear_tag, exact: true }).waitFor();
+    await page.getByRole('button', { name: /Krank \(1\)/ }).click();
+    await page.locator('.calf-desktop-table:visible, .calf-mobile-list:visible').getByRole('button', { name: secondCalf.ear_tag, exact: true }).click();
     const profile = page.getByRole('dialog', { name: `Kalb ${secondCalf.ear_tag}` });
     await profile.getByRole('button', { name: '🔴 Rot', exact: true, pressed: true }).waitFor();
     await profile.getByRole('button', { name: 'Schließen', exact: true }).click();
@@ -571,30 +574,29 @@ async function feedingAndMat(page) {
 async function offlineWeight(page, context) {
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cacheNames = await page.evaluate(() => caches.keys());
-  assert.ok(cacheNames.includes('calfmanager-shell-v3-2-4'));
+  assert.ok(cacheNames.includes('calfmanager-shell-v3-4-0'));
   assert.ok(!cacheNames.includes('calfmanager-shell-v3-2-1'));
   await dashboard(page);
-  await navigate(page, 'Gewichte');
   await context.setOffline(true);
   await page.getByRole('status').getByText('Offline', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Gewicht erfassen' }).click();
-  const form = page.locator('form.modal').filter({ has: page.getByRole('heading', { name: 'Neuen Eintrag erfassen' }) });
-  await form.getByLabel(/^Kalb/).selectOption(calf.id);
-  await form.getByLabel('Gewicht (kg) *', { exact: true }).fill('42.5');
-  await form.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await page.getByText(/Gewicht lokal gespeichert/).waitFor();
-  assert.equal(state.tables.calf_events.filter(event => event.kind === 'weight').length, 0);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('status').getByText('Offline', { exact: true }).waitFor();
-  await navigate(page, 'Gewichte');
-  await page.getByText('42.5 kg', { exact: true }).first().waitFor();
+  // Old clients may have queued weights; seed the exact legacy storage contract.
+  const queuedId=await page.evaluate(async ({userId,farmId,calfId,eventDate})=>{
+    const id=crypto.randomUUID();
+    await new Promise((resolve,reject)=>{const req=indexedDB.open('calfmanager-offline-v1',1);req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;const tx=db.transaction('weights','readwrite');tx.objectStore('weights').put({id,userId,farmId,calfId,eventDate,weightKg:42.5,details:'Altbestand',createdAt:Date.now()});tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};});return id;
+  },{userId:owner.id,farmId:farm.id,calfId:calf.id,eventDate:state.today});
+  assert.equal(state.tables.calf_events.filter(event=>event.kind==='weight').length,0);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByRole('status').getByText('Offline',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Gewichte',exact:true}).count(),0);
   await context.setOffline(false);
   await page.getByRole('status').getByText('Online', { exact: true }).waitFor();
+  await page.waitForFunction(()=>navigator.onLine);
+  for(let i=0;i<50&&!state.tables.calf_events.some(e=>e.id===queuedId);i++) await new Promise(r=>setTimeout(r,100));
   const uploaded = state.tables.calf_events.filter(event => event.kind === 'weight');
   assert.equal(uploaded.length, 1);
   assert.equal(uploaded[0].weight_kg, 42.5);
   assert.equal(uploaded[0].calf_id, calf.id);
-  assert.match(uploaded[0].id, /^[a-f0-9-]{36}$/);
+  assert.equal(uploaded[0].id,queuedId);
 }
 
 async function departedCalfHistory(page) {
@@ -611,7 +613,7 @@ async function departedCalfHistory(page) {
   await profile.getByRole('button', { name: 'Schließen', exact: true }).click();
   await calfLink.waitFor({ state: 'detached' });
   await page.getByRole('button', { name: /Archiv und Abgänge/ }).click();
-  await page.getByRole('row').filter({ has: calfLink }).getByText('Abgegangen', { exact: true }).waitFor();
+  await page.locator(".calf-card-status").filter({hasText:"Abgegangen"}).first().waitFor();
   await calfLink.click();
   await profile.getByRole('button', { name: 'Historie', exact: true }).click();
   await profile.getByText(recurringTemplate.name, { exact: false }).first().waitFor();
@@ -623,6 +625,7 @@ async function departedCalfHistory(page) {
 
 async function templates(page) {
   await navigate(page, 'Einstellungen');
+  await page.getByRole('button',{name:'Aufgabenvorlagen',exact:true}).click();
   const panel = page.getByRole('region', { name: 'Aufgabenvorlagen', exact: true });
   await panel.getByRole('button', { name: 'Vorlage anlegen', exact: true }).click();
   const form = panel.locator('.task-template-form');
@@ -641,6 +644,8 @@ async function templates(page) {
 }
 
 async function matSettings(page) {
+  await page.getByRole('button',{name:'Zurück',exact:true}).click();
+  await page.getByRole('button',{name:'MAT-Rechner',exact:true}).click();
   const settings = page.getByRole('region', { name: 'MAT-Anmischung' });
   await settings.getByLabel('Bezugsmenge der Konzentration').selectOption('water');
   await settings.getByLabel('MAT-Konzentration (g je Liter)', { exact: true }).fill('200');

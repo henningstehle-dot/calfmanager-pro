@@ -13,15 +13,15 @@ const { chromium } = require(process.env.CALFMANAGER_PLAYWRIGHT || 'playwright-c
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const workspace = await mkdtemp(join(tmpdir(), 'calfmanager-pwa-'));
 const previousSource = join(workspace, 'previous');
-const previousOutput = join(workspace, '3.2.2');
-const output = join(workspace, '3.2.3');
+const previousOutput = join(workspace, '3.2.4');
+const output = join(workspace, '3.4.0');
 const base = '/calfmanager-pro/';
-const oldCache = 'calfmanager-shell-v3-2-2';
-const currentCache = 'calfmanager-shell-v3-2-3';
+const oldCache = 'calfmanager-shell-v3-2-4';
+const currentCache = 'calfmanager-shell-v3-4-0';
 const mobile = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 const contentTypes = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
-  '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json',
+  '.webp': 'image/webp', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json',
 };
 let oldRelease = true;
 let networkAvailable = true;
@@ -69,14 +69,16 @@ try {
   const origin = `http://127.0.0.1:${server.address().port}`;
   const app = `${origin}${base}`;
   // Serve both real builds with the same GitHub Pages base and local API URL.
-  const archive = join(workspace, '3.2.2.tar');
+  const archive = process.env.CALFMANAGER_PREVIOUS_ZIP;
+  if (!archive) throw new Error('CALFMANAGER_PREVIOUS_ZIP muss auf das Originalarchiv 3.2.4 zeigen.');
   await mkdir(previousSource);
-  execFileSync('git', ['archive', '--output', archive, 'c6330a00f2b2743b67a8384e5d403c46245bac4c'], { cwd: repo });
-  execFileSync('tar', ['-xf', archive, '-C', previousSource]);
-  await symlink(join(repo, 'node_modules'), join(previousSource, 'node_modules'));
+  execFileSync('unzip', ['-q', archive, '-d', previousSource]);
+  const entries = await readdir(previousSource);
+  const previousRoot = entries.length === 1 ? join(previousSource, entries[0]) : previousSource;
+  await symlink(join(repo, 'node_modules'), join(previousRoot, 'node_modules'));
   const buildEnvironment = { ...process.env, GITHUB_REPOSITORY: 'fixture/calfmanager-pro',
     VITE_SUPABASE_URL: origin, VITE_SUPABASE_ANON_KEY: 'local-fixture-only' };
-  for (const [source, destination] of [[previousSource, previousOutput], [repo, output]]) {
+  for (const [source, destination] of [[previousRoot, previousOutput], [repo, output]]) {
     execFileSync(process.execPath, [join(repo, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', destination, '--emptyOutDir'], {
       cwd: source, stdio: 'inherit', env: buildEnvironment,
     });
@@ -133,7 +135,7 @@ try {
   await afterUpgrade.getByRole('heading', { name: 'Anmelden', exact: true }).waitFor();
   assert.equal(await afterUpgrade.locator('script[type="module"][src]').getAttribute('src'), currentScript);
   await upgrading.close();
-  console.log('Chromium 390 × 844: 3.2.2 → 3.2.3, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
+  console.log('Chromium 390 × 844: 3.2.4 → 3.4.0, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
 
   networkAvailable = true;
   const fresh = await browser.newContext(mobile);

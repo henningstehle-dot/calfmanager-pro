@@ -2,10 +2,11 @@ export const maximumDailyTasks = 24;
 export const maximumTaskDays = 3660;
 
 export type TaskCategory = 'today' | 'overdue' | 'planned' | 'completed';
-export type TaskSource = 'assignment' | 'legacy' | 'followup' | 'vaccination';
+export type TaskSource = 'farm' | 'assignment' | 'legacy' | 'followup' | 'vaccination';
 
 export type FarmTask = {
   source: TaskSource;
+  recurring?: boolean | null;
   assignment_id: string | null;
   event_id: string | null;
   group_id: string | null;
@@ -44,6 +45,7 @@ export type TaskTemplate = TaskTemplateValues & {
 };
 
 export type TaskAssignment = {
+  farmWide?: boolean;
   calfIds: string[];
   templateId: string | null;
   name: string;
@@ -162,8 +164,8 @@ export function tasksByBox(rows: FarmTask[], boxes: TaskBox[]) {
   const names = new Map(boxes.map(box => [box.id, box.name]));
   const groups = new Map<string, { id: string; name: string; rows: FarmTask[] }>();
   for (const row of rows) {
-    const id = row.box_id ?? '';
-    const group = groups.get(id) ?? { id, name: id ? names.get(id) ?? unknownBoxName : 'Ohne Box', rows: [] };
+    const id = row.source === 'farm' ? '__farm__' : row.box_id ?? '';
+    const group = groups.get(id) ?? { id, name: id === '__farm__' ? 'Betrieb' : id ? names.get(id) ?? unknownBoxName : 'Ohne Box', rows: [] };
     group.rows.push(row);
     groups.set(id, group);
   }

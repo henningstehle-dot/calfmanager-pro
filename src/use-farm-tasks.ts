@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readSnapshot, saveSnapshot } from './offline';
-import { dateInFarmTime, taskKey, taskSeriesKey, type FarmTask, type TaskAssignment, type TaskTemplate, type TaskTemplateValues } from './task-model';
+import { dateInFarmTime, taskKey, taskSeriesKey, type FarmTask, type TaskCategory, type TaskAssignment, type TaskTemplate, type TaskTemplateValues } from './task-model';
 
-type TaskSnapshot = { today: string; rows: FarmTask[] };
+type TaskSnapshot = { today: string; rows: FarmTask[]; savedAt?: number; farmCounts?: Partial<Record<TaskCategory,number>>; farmDoneToday?: number };
 type TaskState = { scope: string; snapshot?: TaskSnapshot; loading: boolean; error: string };
 type TemplateState = { scope: string; templates: TaskTemplate[]; loading: boolean; error: string };
 
@@ -38,12 +38,12 @@ export function useFarmTasks(
       error: '',
     }));
     try {
-      const { data, error } = await db.rpc('list_farm_tasks_322', { p_farm_id: farmId });
+      const { data, error } = await db.rpc('list_farm_tasks_340', { p_farm_id: farmId });
       if (error) throw error;
       const snapshot = data as TaskSnapshot | null;
       if (!snapshot?.today || !Array.isArray(snapshot.rows)) throw new Error('Ungültige Antwort des Servers.');
       if (taskRequest.current !== request || activeScope.current !== scope) return;
-      setState({ scope, snapshot, loading: false, error: '' });
+      setState({ scope, snapshot: {...snapshot,savedAt:Date.now()}, loading: false, error: '' });
     } catch (error) {
       if (taskRequest.current !== request || activeScope.current !== scope) return;
       setState(previous => ({ ...previous, scope, loading: false, error: taskError(error) }));
@@ -85,7 +85,7 @@ export function useFarmTasks(
         ? previous
         : {
           scope,
-          snapshot,
+          snapshot: {...snapshot,savedAt:snapshot.savedAt??cached?.savedAt},
           loading: previous.scope === scope && previous.loading,
           error: previous.scope === scope ? previous.error : '',
         });
@@ -136,11 +136,29 @@ export function useFarmTasks(
     void refresh();
   };
 
+  async function loadMore(category: TaskCategory) {
+    const {db,farmId}=assertWrite();
+    const loaded=snapshot?.rows.filter(r=>r.source==='farm'&&r.category===category)??[];
+    const last=loaded[loaded.length-1];
+    if(!last?.assignment_id) return;
+    const request=taskRequest.current;
+    const {data,error}=await db.rpc('list_farm_tasks_340',{p_farm_id:farmId,p_category:category,p_after_due:last.due_date,p_after_order:last.assignment_id,p_after_occurrence:last.occurrence});
+    if(error) throw new Error(taskError(error));
+    const page=data as TaskSnapshot;
+    if(activeScope.current!==scope||taskRequest.current!==request||page.today!==snapshot?.today) throw new Error('Aufgabenstand geändert. Bitte erneut laden.');
+    setState(old=>{if(old.scope!==scope||!old.snapshot)return old;const rows=new Map(old.snapshot.rows.map(r=>[taskKey(r),r]));for(const r of page.rows)rows.set(taskKey(r),r);return {...old,snapshot:{...old.snapshot,rows:[...rows.values()],farmCounts:page.farmCounts,farmDoneToday:page.farmDoneToday}};});
+  }
+
   async function create(assignment: TaskAssignment) {
     const { db, farmId } = assertWrite();
-    const { data, error } = await db.rpc('create_farm_tasks_322', {
+    const {requestId, ...payload} = assignment;
+    const pendingKey = `calfmanager:pending-work:${scope}:${JSON.stringify(payload)}`;
+    // Keep an ambiguous request across dialog closure and reload. Fail closed if storage fails.
+    const durableId = assignment.farmWide ? (sessionStorage.getItem(pendingKey) || requestId || crypto.randomUUID()) : requestId;
+    if (assignment.farmWide && durableId) sessionStorage.setItem(pendingKey, durableId);
+    const { data, error } = await db.rpc(assignment.farmWide ? 'create_farm_work_340' : 'create_farm_tasks_322', {
       p_farm_id: farmId,
-      p_calf_ids: assignment.calfIds,
+      ...(!assignment.farmWide ? {p_calf_ids: assignment.calfIds} : {}),
       p_template_id: assignment.templateId,
       p_name: assignment.name,
       p_recurring: assignment.recurring,
@@ -148,15 +166,23 @@ export function useFarmTasks(
       p_start_date: assignment.startDate,
       p_end_date: assignment.endDate,
       p_notes: assignment.notes,
-      p_request_id: assignment.requestId,
+      p_request_id: durableId,
     });
     if (error) throw new Error(taskError(error));
+    if (assignment.farmWide) sessionStorage.removeItem(pendingKey);
     recordChange();
     return Number(data);
   }
 
   async function complete(rows: FarmTask[]) {
     const { db, farmId } = assertWrite();
+    if (rows.some(row => row.source === 'farm')) {
+      if (rows.length !== 1) throw new Error('Betriebsaufgaben einzeln bestätigen.');
+      const row = rows[0];
+      const {data,error} = await db.rpc('complete_farm_work_340',{p_farm_id:farmId,p_order_id:row.assignment_id,p_due_date:row.due_date,p_occurrence:row.occurrence});
+      if(error) throw new Error(taskError(error));
+      recordChange(); return Number(data);
+    }
     const { data, error } = await db.rpc('complete_farm_tasks_322', {
       p_farm_id: farmId,
       p_tasks: rows.map(row => ({
@@ -175,6 +201,10 @@ export function useFarmTasks(
 
   async function end(row: FarmTask) {
     const { db, farmId } = assertWrite();
+    if(row.source === 'farm'){
+      const {error}=await db.rpc('end_farm_work_340',{p_farm_id:farmId,p_order_id:row.assignment_id});
+      if(error) throw new Error(taskError(error)); recordChange(); return;
+    }
     const { error } = await db.rpc('end_farm_task_322', {
       p_farm_id: farmId,
       p_assignment_id: row.assignment_id,
@@ -204,6 +234,11 @@ export function useFarmTasks(
   }
 
   return {
+    scope,
+    farmCounts: snapshot?.farmCounts,
+    farmDoneToday: snapshot?.farmDoneToday,
+    loadMore,
+    savedAt: current?.snapshot?.savedAt??null,
     today: current?.snapshot?.today ?? dateInFarmTime(),
     rows: current?.snapshot?.rows ?? [],
     available: Boolean(current?.snapshot && scope),
@@ -219,6 +254,7 @@ export function useFarmTasks(
     create,
     complete,
     end,
+    history: async (before?: {completed_at:string;order_id:string;due_date:string;occurrence:number}) => { const {db,farmId}=assertWrite(); const {data,error}=await db.rpc('farm_work_history_page_340',{p_farm_id:farmId,p_before:before?.completed_at??null,p_order:before?.order_id??null,p_due:before?.due_date??null,p_occurrence:before?.occurrence??null}); if(error) throw new Error(taskError(error)); if(activeScope.current!==scope) throw new Error('Betrieb gewechselt.'); return data as {order_id:string;name:string;due_date:string;occurrence:number;completed_at:string;completed_by_name:string}[]; },
     saveTemplate,
     setTemplateActive,
   };

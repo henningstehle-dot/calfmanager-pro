@@ -57,7 +57,7 @@ export function makeFixture() {
   ];
   return {
     today: initialDate, requests: [], unexpected: [], failNextGroup: false,
-    assignments: [], completions: new Map(),
+    workOrders: [], workDone: [], assignments: [], completions: new Map(),
     tables: {
       farms: [farm], calves: structuredClone([calf, secondCalf, unboxedCalf, archivedCalf]),
       calf_events: [legacyTask, { ...legacyTask, id: randomUUID(), calf_id: archivedCalf.id, details: 'Archivierte Aufgabe' }],
@@ -75,6 +75,23 @@ export function makeFixture() {
     },
     members,
   };
+}
+
+// Synthetic browser backend only; PostgreSQL tests remain authoritative for permissions.
+export function workRows(state) {
+  const rows = [];
+  for (const a of state.workOrders.filter(a=>a.p_farm_id===farm.id)) {
+    const next = a.p_start_date > state.today ? a.p_start_date : dateOffset(state.today, 1);
+    const end = a.p_recurring ? (a.p_end_date && a.p_end_date < next ? a.p_end_date : next) : a.p_start_date;
+    for (let due = a.p_start_date; due <= end; due = dateOffset(due, 1)) {
+      for (let occurrence = 1; occurrence <= a.p_times_per_day; occurrence++) {
+        const done = state.workDone.find(c => c.order_id === a.id && c.due_date === due && c.occurrence === occurrence);
+        if ((!done && a.ended) || (done && done.completed_on !== state.today)) continue;
+        rows.push({source:'farm', recurring:a.p_recurring, assignment_id:a.id, event_id:null, group_id:null, calf_id:'', ear_tag:'Betrieb', box_id:null, name:a.p_name, notes:a.p_notes, due_date:due, occurrence, times_per_day:a.p_times_per_day, treatment_day:null,treatment_days:null, priority:null, completed_at:null, completed_by:null, completed_by_name:null, ...done, category:done?'completed':due<state.today?'overdue':due===state.today?'today':'planned', is_treatment:false, can_end:!done&&!a.ended});
+      }
+    }
+  }
+  return rows.sort((a,b)=>a.due_date.localeCompare(b.due_date)||a.assignment_id.localeCompare(b.assignment_id)||a.occurrence-b.occurrence);
 }
 
 async function bodyOf(request) {
@@ -134,7 +151,7 @@ function taskRows(state, calfId) {
         if (!calfId && completion && completion.completed_at.slice(0, 10) !== state.today) continue;
         const fixed = task.recurring && task.end_date;
         rows.push(makeRow({
-          source: 'assignment', assignment_id: task.id, event_id: null, group_id: task.group_id,
+          source: 'assignment', recurring:task.recurring, assignment_id: task.id, event_id: null, group_id: task.group_id,
           name: task.name, notes: task.notes, due_date: due, occurrence, times_per_day: task.times_per_day,
           treatment_day: fixed ? (Date.parse(due) - Date.parse(task.start_date)) / 86400000 + 1 : null,
           treatment_days: fixed ? (Date.parse(task.end_date) - Date.parse(task.start_date)) / 86400000 + 1 : null,
@@ -226,6 +243,40 @@ export async function mockApi(request, response, state) {
       case 'is_platform_admin': return json(200, false);
       case 'list_farm_members': return json(200, requestBody.p_farm_id === farm.id ? state.members : state.members.filter(member => member.user_id === owner.id));
       case 'list_farm_invitations': return json(200, []);
+      case 'list_farm_tasks_340': {
+        const rows = requestBody.p_farm_id === farm.id ? workRows(state) : [];
+        const farmCounts = {}, page = [];
+        for (const category of ['today','overdue','planned','completed']) {
+          const subset = rows.filter(r=>r.category===category).sort((a,b)=>a.due_date.localeCompare(b.due_date)||a.assignment_id.localeCompare(b.assignment_id)||a.occurrence-b.occurrence);
+          farmCounts[category]=subset.length;
+          if (!requestBody.p_category || requestBody.p_category===category) page.push(...subset.filter(r=>!requestBody.p_after_due || r.due_date>requestBody.p_after_due || (r.due_date===requestBody.p_after_due && (r.assignment_id>requestBody.p_after_order || (r.assignment_id===requestBody.p_after_order && r.occurrence>requestBody.p_after_occurrence)))).slice(requestBody.p_offset??0,(requestBody.p_offset??0)+200));
+        }
+        return json(200,{today:state.today,rows:[...(!requestBody.p_category&&requestBody.p_farm_id===farm.id?taskRows(state):[]),...page],farmCounts,farmDoneToday:rows.filter(r=>r.category==='completed'&&r.due_date===state.today).length});
+      }
+      case 'create_farm_work_340': {
+        const existing=state.workOrders.find(a=>a.p_farm_id===requestBody.p_farm_id&&a.p_request_id===requestBody.p_request_id);
+        if(existing) return json(200,1);
+        state.workOrders.push({...requestBody,id:randomUUID()});
+        if(state.loseWorkResponse){state.loseWorkResponse=false;return json(503,{message:'Test: Antwort nach Speicherung verloren'});}
+        return json(200,1);
+      }
+      case 'complete_farm_work_340': {
+        const a=state.workOrders.find(a=>a.id===requestBody.p_order_id&&a.p_farm_id===requestBody.p_farm_id);
+        if(!a) return json(400,{message:'Aufgabe nicht vorhanden'});
+        const due=requestBody.p_due_date, occurrence=requestBody.p_occurrence;
+        if(state.workDone.some(c=>c.order_id===a.id&&c.due_date===due&&c.occurrence===occurrence))return json(200,0);
+        if(a.ended||due>state.today||due<a.p_start_date||due>(a.p_end_date??(a.p_recurring?'9999-12-31':a.p_start_date))||occurrence<1||occurrence>a.p_times_per_day)return json(400,{message:'Ungültige Durchführung'});
+        state.workDone.push({order_id:a.id,due_date:due,occurrence,completed_at:new Date().toISOString(),completed_on:state.today,completed_by:user.id,completed_by_name:user.user_metadata.first_name});return json(200,1);
+      }
+      case 'end_farm_work_340': {
+        const a=state.workOrders.find(a=>a.id===requestBody.p_order_id&&a.p_farm_id===requestBody.p_farm_id);
+        if(!a)return json(400,{message:'Aufgabe nicht vorhanden'});a.ended=true;return json(200,null);
+      }
+      case 'farm_work_history_page_340': {
+        const key=c=>[c.completed_at,c.order_id,c.due_date,String(c.occurrence).padStart(2,'0')].join('|');
+        const before=requestBody.p_before?key({completed_at:requestBody.p_before,order_id:requestBody.p_order,due_date:requestBody.p_due,occurrence:requestBody.p_occurrence}):null;
+        return json(200,state.workDone.filter(c=>state.workOrders.some(a=>a.id===c.order_id&&a.p_farm_id===requestBody.p_farm_id)&&(!before||key(c)<before)).sort((a,b)=>key(b).localeCompare(key(a))).slice(0,200).map(c=>({...c,name:state.workOrders.find(a=>a.id===c.order_id).p_name})));
+      }
       case 'list_farm_tasks_322': return json(200, { today: state.today, rows: requestBody.p_farm_id === farm.id ? taskRows(state) : [] });
       case 'list_calf_task_history_322': return json(200, taskRows(state, requestBody.p_calf_id));
       case 'create_farm_tasks_322': {

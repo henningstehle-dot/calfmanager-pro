@@ -79,3 +79,10 @@ test('offline compatibility preserves due legacy tasks for active calves', () =>
   ]);
   assert.equal(countDueTasks(result), 2);
 });
+
+test('farm-wide tasks appear in their own group without a calf', () => {
+ const farm = row({source:'farm',assignment_id:'farm-order',group_id:null,calf_id:'',ear_tag:'Betrieb',box_id:null});
+ assert.equal(tasksByBox([farm],[])[0].name,'Betrieb');
+ assert.equal(countDueTasks([farm]),1);
+ assert.notEqual(taskKey(farm),taskKey({...farm,occurrence:2}));
+});
