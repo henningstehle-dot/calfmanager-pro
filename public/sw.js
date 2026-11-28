@@ -1,4 +1,4 @@
-const CACHE='calfmanager-shell-v3-4-0';
+const CACHE='calfmanager-shell-v3-4-1';
 const PRECACHE_ASSETS = [];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['./', './index.html', ...PRECACHE_ASSETS])));

@@ -204,3 +204,20 @@
 .farmer-content .dashboard-toolbar .dashboard-greeting{color:#fff!important;background:#063b29;border-radius:6px;padding:2px 5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .farmer-content .dashboard-quick-grid button.primary,.farmer-content .dashboard-quick-grid button.primary *{color:#fff!important;background-color:#205c3b}
 .farmer-content .dashboard-toolbar select{max-width:100%;text-overflow:clip}
+
+/* 3.4.1: compact shared dashboard and page header */
+.farmer-content .farmer-toolbar,.farmer-content .dashboard-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,38%);min-height:0;padding:8px 10px;gap:8px;margin-bottom:8px;align-items:center}
+.farmer-content .dashboard-toolbar h1.farmer-brand{max-width:none;font-size:clamp(18px,3vw,26px);margin:0}
+.farmer-content .farmer-select-label{width:100%;margin:0;max-width:220px;justify-self:end}
+.farmer-content .farmer-select-label select{min-height:36px;height:36px;padding:4px 8px;font-size:12px;width:100%;background:#fff;color:#173b29;border-radius:8px}
+.farmer-content .compact-page-actions{margin:0 0 8px;min-height:0;justify-content:flex-end;padding:0}
+.farmer-content .compact-page-actions:has(.actions:empty){display:none}
+.farmer-content .dashboard340-grid{grid-template-columns:minmax(0,1fr);gap:8px}
+.farmer-content .dashboard340-grid>section{grid-column:1/-1;grid-row:auto;margin:0}
+.farmer-content .dashboard340-grid>.dashboard-metrics{display:grid}
+.farmer-content .dashboard-work{grid-template-columns:minmax(0,1fr)}
+.farmer-content .dashboard-treatment{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #e4ebe4}
+.farmer-content .dashboard-treatment>span,.farmer-content .dashboard-reminders button>span:first-child{min-width:0;overflow-wrap:anywhere}
+.farmer-content .dashboard-treatment small{display:block;color:#52675a;font-size:12px}
+.farmer-content .dashboard-treatment time,.farmer-content .dashboard-reminders time{flex:none;white-space:nowrap;font-size:12px;font-weight:650}
+.farmer-content .desktop-extra341{grid-column:1/-1;margin:0}.desktop-extra341 summary{cursor:pointer;font-weight:650}.desktop-extra341 .desktop-work8{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
