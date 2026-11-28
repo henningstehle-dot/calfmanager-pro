@@ -14,10 +14,10 @@ const repo = fileURLToPath(new URL('..', import.meta.url));
 const workspace = await mkdtemp(join(tmpdir(), 'calfmanager-pwa-'));
 const previousSource = join(workspace, 'previous');
 const previousOutput = join(workspace, '3.2.4');
-const output = join(workspace, '3.4.3');
+const output = join(workspace, '3.4.4');
 const base = '/calfmanager-pro/';
 const oldCache = 'calfmanager-shell-v3-2-4';
-const currentCache = 'calfmanager-shell-v3-4-3';
+const currentCache = 'calfmanager-shell-v3-4-4';
 const mobile = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 const contentTypes = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -135,7 +135,7 @@ try {
   await afterUpgrade.getByRole('heading', { name: 'Anmelden', exact: true }).waitFor();
   assert.equal(await afterUpgrade.locator('script[type="module"][src]').getAttribute('src'), currentScript);
   await upgrading.close();
-  console.log('Chromium 390 × 844: 3.2.4 → 3.4.3, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
+  console.log('Chromium 390 × 844: 3.2.4 → 3.4.4, Wartephase, Cache-Wechsel und erster Offline-Start geprüft.');
 
   networkAvailable = true;
   const fresh = await browser.newContext(mobile);

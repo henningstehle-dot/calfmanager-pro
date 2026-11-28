@@ -246,3 +246,7 @@
 .farmer-content .box-card.box-editing343,.farmer-content .box-edit-form343{background:#fff0ee;border:2px solid #c7443b;border-radius:12px;padding:12px}
 .farmer-content .box-new-form343{margin-top:24px;padding-top:18px;border-top:2px solid #b9cbbd}
 .box-controls343{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.box-drag343{touch-action:none;user-select:none;cursor:grab}.box-drag343:active{cursor:grabbing;background:#dcebd8}.box-controls343 button{font-size:12px}
+/* 3.4.4: touch gesture is reserved only on the dedicated drag handle. */
+.farmer-content .box-drag343{touch-action:none!important;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;cursor:grab}
+.farmer-content .box-card.box-source344{outline:3px solid #236b43;outline-offset:-3px;background:#dcebd8}
+.farmer-content .box-card.box-drop344{outline:3px dashed #236b43;outline-offset:-3px;background:#edf7e9}
